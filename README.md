@@ -1,4 +1,4 @@
-# PyTorch-deep-photo-styletransfer
+# PyTorch-GAN-Experiments-Env
 PyTorch GAN playground. 
 Features:
 1. yaml config file
@@ -86,4 +86,4 @@ After training, generate images
 
 ```python main.py --mode predict```
 
-- generated image example
+Adapted from [Dongjun Lee](https://github.com/DongjunLee)
