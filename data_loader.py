@@ -16,27 +16,13 @@ def get_loader(mode):
 	is_train = mode == "train"
 	
 	if config.model.use_augmentation:
-		transform_list.extend[torchvision.transforms.Resize((224,224)),
-		torchvision.transforms.ColorJitter(hue=.05, saturation=.05),
-		transforms.RandomResizedCrop(224),
-		transforms.RandomHorizontalFlip(p=0.2),
-		torchvision.transforms.RandomHorizontalFlip(),
-		torchvision.transforms.RandomAffine(45),
-		torchvision.transforms.RandomRotation(20),]
-transform_list.extend([transforms.Resize(config.data.image_size), transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
-		transform = transforms.Compose(transform_list)
-	transforms = torchvision.transforms.Compose([
-		torchvision.transforms.Resize((224,224)),
-		torchvision.transforms.ColorJitter(hue=.05, saturation=.05),
-		transforms.RandomResizedCrop(224),
-		transforms.RandomHorizontalFlip(p=0.2),
-		torchvision.transforms.RandomHorizontalFlip(),
-		torchvision.transforms.RandomAffine(45),
-		torchvision.transforms.RandomRotation(20),
-		transforms.ToTensor(),
-		transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-		])
+		transform_list.extend([torchvision.transforms.Resize((224, 224)), torchvision.transforms.ColorJitter(hue=.05, saturation=.05), transforms.RandomResizedCrop(224),
+		                       transforms.RandomHorizontalFlip(p=0.2), torchvision.transforms.RandomHorizontalFlip(), torchvision.transforms.RandomAffine(45),
+		                       torchvision.transforms.RandomRotation(20)])
+	transform_list.extend([transforms.Resize(config.data.image_size), transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+	
+	transform = transforms.Compose(transform_list)
+	
 	if config.model.dataset == "mnist":
 		mnist = datasets.MNIST(root=config.data.mnist_path, download=True, transform=transform, train=is_train)
 		# train-validation split

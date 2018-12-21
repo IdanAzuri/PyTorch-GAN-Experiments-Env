@@ -57,7 +57,7 @@ class ACGAN(GAN):
 			g_loss = self._train_generator(self.generator, valid_labels, gen_labels)
 			
 			# Train the discriminator
-			d_loss = self._train_discriminator(self.discriminator, images, valid_labels, gen_labels, fake_labels, real_labels)
+			d_loss = self._train_acgan_discriminator(self.discriminator, images, valid_labels, gen_labels, fake_labels, real_labels)
 			
 			# Step Verbose & Tensorboard Summary
 			if step_count % Config.train.verbose_step_count == 0:
@@ -79,7 +79,7 @@ class ACGAN(GAN):
 		self.prev_step_count = step_count
 		return d_loss, g_loss
 	
-	def _train_discriminator(self, discriminator, real_images, valid_labels, gen_labels, fake_labels, real_labels):
+	def _train_acgan_discriminator(self, discriminator, real_images, valid_labels, gen_labels, fake_labels, real_labels):
 		discriminator.zero_grad()
 		auxiliary_loss = self.auxiliary_criterion
 		adversarial_loss = self.adversarial_criterion
