@@ -1,7 +1,10 @@
+import torch.nn as nn
+import torch.optim as optim
 from hbconfig import Config
 
 from acgan import ACGAN
 from gan import GAN
+from one_shot_aug import OneShotAug
 
 
 class Model():
@@ -15,7 +18,7 @@ class Model():
 	def model_builder(self):
 		#load model
 		global model
-		models = [ACGAN, GAN]
+		models = [ACGAN, GAN, OneShotAug]
 		for current_model in models:
 			if current_model.model_name == Config.model.name:
 				model=current_model()
