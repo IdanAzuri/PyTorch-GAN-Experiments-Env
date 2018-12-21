@@ -1,0 +1,44 @@
+data:
+  path: "data/"
+  mnist_path: "data/mnist"
+  svhn_path: "data/svhn"
+  image_size: 28
+  num_workers: 6
+
+model:
+  z_dim: 100  # Random noise dimension coming into generator, per output vector
+  real_dim: 784  #$image_size * image_size
+
+  g_h1: 256
+  g_h2: 512
+  g_h3: 1024
+
+  d_h1: 1024
+  d_h2: 512
+  d_h3: 256
+
+  dropout: 0.3
+  use_augmentation: False
+  dataset: mnist
+
+
+train:
+  model_dir: "logs/gan"
+  batch_size: 64
+  train_steps: 50000
+  shuffle: true
+
+  d_learning_rate: 0.0002  # 2e-4
+  g_learning_rate: 0.0002
+  optim_betas:
+    - 0.5
+    - 0.999
+
+  save_checkpoints_steps: 1000
+  verbose_step_count: 100
+
+predict:
+  batch_size: 64
+
+slack:
+  webhook_url: ""  # after training notify you using slack-webhook
