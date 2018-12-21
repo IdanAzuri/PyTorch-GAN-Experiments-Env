@@ -86,4 +86,13 @@ After training, generate images
 
 ```python main.py --mode predict```
 
+
+
+
+
+
+
+
+
+
 Adapted from [Dongjun Lee](https://github.com/DongjunLee)
