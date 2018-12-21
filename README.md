@@ -28,7 +28,7 @@ Reference : [hb-config](https://github.com/hb-research/hb-config)
 In order to implement your own model just create a new branch, copy the gan directory and edit it as you want.
 
 ## Data loader
-Py torch support many datasets which are implemented to work with the data loaders, so if you want to work on different dataset just add it in the data_loader.py file and repsectively in the config file.
+Pytorch supports many datasets which are implemented to work with the data loaders, so if you want to work on different dataset just add it in the data_loader.py file and repsectively in the config file.
 
 ## Config
 
