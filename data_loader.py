@@ -7,7 +7,6 @@ from torchvision import datasets
 from torchvision import transforms
 
 
-
 def get_loader(mode):
 	"""Builds and returns Dataloader for MNIST and SVHN dataset."""
 	global train_loader, valid_loader
@@ -82,4 +81,3 @@ def train_valid_split(ds, split_fold=10, random_seed=None):
 	valid = GenHelper(ds, valid_size, valid_mapping)
 	
 	return train, valid
-

@@ -3,8 +3,6 @@
 import argparse
 import atexit
 
-from hbconfig import Config
-
 import utils
 from data_loader import *
 from model import Model

@@ -41,8 +41,8 @@ class OneShotAug():
 	
 	def _train_epoch(self, data_loader):
 		global d_loss, g_loss, step_count
-		train_loader, valid_loader = data_loader
-		d_prev_loss = np.infty
+		train_loader, validation_loader = data_loader
+		prev_validation_loss = np.infty
 		for curr_step_count, (images, labels) in enumerate(train_loader):
 			step_count = self.prev_step_count + curr_step_count + 1  # init value
 			self.batch_size = images.shape[0]
@@ -57,10 +57,12 @@ class OneShotAug():
 			# save previous state - if needed turn back
 			self.save_model_params(self.D_PATH, self.discriminator)
 			# Train the discriminator
-			d_loss = self._train_discriminator(self.discriminator, images, labels)
+			d_loss, validation_loss, validation_accurcy = self._train_discriminator(self.discriminator, images, labels, validation_loader)
 			# load weights only if worse
-			if d_loss < d_prev_loss:
-				d_prev_loss = d_loss
+			print("previous_validation loss ={}, current_validation_loss={}".format(prev_validation_loss,validation_loss))
+			if validation_loss > prev_validation_loss:
+				print("Loading previous weights...")
+				prev_validation_loss = validation_loss
 				self.discriminator.load_state_dict(torch.load(self.D_PATH))
 			
 			# Step Verbose & Tensorboard Summary
@@ -83,7 +85,7 @@ class OneShotAug():
 		self.prev_step_count = step_count
 		return d_loss, g_loss
 	
-	def _train_discriminator(self, discriminator, real_images, real_labels):
+	def _train_discriminator(self, discriminator, real_images, real_labels, validation_set):
 		discriminator.zero_grad()
 		auxiliary_loss = self.auxiliary_criterion
 		# adversarial_loss = self.adversarial_criterion
@@ -102,12 +104,18 @@ class OneShotAug():
 		d_loss.backward()
 		self.d_optimizer.step()
 		
-		# # Calculate discriminator accuracy
-		# pred = np.concatenate([real_aux.data.cpu().numpy(), fake_aux.data.cpu().numpy()], axis=0)
-		# gt = np.concatenate([real_labels.data.cpu().numpy(), fake_labels.data.cpu().numpy()], axis=0)
-		# d_acc = np.mean(np.argmax(pred, axis=1) == gt)
+		# validation statistics
+		validation_loss = 0.0
+		validation_accurcy = 0
+		for valid_images, valid_labels in validation_set:
+			valid_predicted_labels = discriminator(valid_images)
+			valid_d_loss = auxiliary_loss(valid_predicted_labels, valid_labels)
+			pred = valid_predicted_labels.view(-1)
+			label = valid_labels.view(-1)
+			validation_loss += valid_d_loss.data[0]
+			validation_accurcy += torch.sum(pred == label.data)
 		
-		return d_loss
+		return d_loss, validation_loss, validation_accurcy
 	
 	# def _train_generator(self, generator, gen_labels):
 	# 		pass

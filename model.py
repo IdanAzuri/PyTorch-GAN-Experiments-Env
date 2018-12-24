@@ -1,5 +1,3 @@
-import torch.nn as nn
-import torch.optim as optim
 from hbconfig import Config
 
 from acgan import ACGAN
@@ -16,12 +14,12 @@ class Model():
 		self.mode = mode
 	
 	def model_builder(self):
-		#load model
+		# load model
 		global model
 		models = [ACGAN, GAN, OneShotAug]
 		for current_model in models:
 			if current_model.model_name == Config.model.name:
-				model=current_model()
+				model = current_model()
 				break
 		if self.mode == self.TRAIN_MODE:
 			criterion = model.build_criterion()
@@ -34,7 +32,6 @@ class Model():
 			return model.predict()
 		else:
 			raise ValueError(f"unknown mode: {self.mode}")
-		
 	
 	def build_metric(self):
 		pass
