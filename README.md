@@ -15,20 +15,27 @@ Features:
         ├── __init__.py             # train, evaluate, predict logic
         ├── module.py               # Discriminator, Generator module
         └── utils.py                # Save and Load Model, TensorBoard
+    ├── acgan                     # ACGAN architecture
+        ├── __init__.py             # train,logic
+        ├── module.py               # Discriminator, Generator module
+        └── utils.py                # Save and Load Model, TensorBoard
     ├── data_loader.py          # make_data_loader (using DataLoader)
     ├── main.py                 
     ├── model.py                # define Model Spec
-    └── model.py                # utils
+    └── utils.py                # utils
+    └── plots.py                # generic functions to plot you results from a pickle file
+    └── sampler.py              # different sampling methods:multi-modal uniform,muli-modal Gaussian,truncated normal...
 
 
 Reference : [hb-config](https://github.com/hb-research/hb-config)
 
 - Manage experiments like [tf.Estimator](https://www.tensorflow.org/api_docs/python/tf/estimator/Estimator)
 ## Create a new model
-In order to implement your own model just create a new branch, copy the gan directory and edit it as you want.
+In order to implement your own model just create a **new branch**, copy the gan directory and edit it as you want.
 
 ## Data loader
 Pytorch supports many datasets which are implemented to work with the data loaders, so if you want to work on different dataset just add it in the data_loader.py file and repsectively in the config file.
+[Supported data sets](https://pytorch.org/docs/stable/torchvision/datasets.html)
 
 ## Config
 
@@ -95,8 +102,8 @@ After training, generate images
 
 
 
+<br><br><br>
 
 
 
-
-Adapted from [Dongjun Lee](https://github.com/DongjunLee)
+###### Some code adapted from [Dongjun Lee](https://github.com/DongjunLee)
