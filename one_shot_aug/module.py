@@ -27,7 +27,7 @@ class Discriminator(nn.Module):
 		ds_size = int(Config.data.image_size / 2) ** 4
 		
 		# Output layers
-		self.output_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, Config.model.n_classes), nn.Softmax())
+		self.output_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, Config.model.n_classes), nn.Softmax(dim=Config.model.n_classes))
 	
 	def forward(self, image):
 		out = self.conv_blocks(image)

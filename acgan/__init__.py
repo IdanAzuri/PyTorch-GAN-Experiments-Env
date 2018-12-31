@@ -15,8 +15,7 @@ from . import utils
 cuda = True if torch.cuda.is_available() else False
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
-
-
+print("CUDA is available {}".format(torch.cuda.is_available()))
 class ACGAN(GAN):
 	model_name = "ACGAN"
 	os.makedirs('images', exist_ok=True)
@@ -49,7 +48,7 @@ class ACGAN(GAN):
 			fake_labels = Variable(FloatTensor(self.batch_size, 1).fill_(0.0), requires_grad=False)
 			
 			# Converting to Variable type
-			real_labels = Variable(real_labels.type(LongTensor))
+			real_labels = Variable(LongTensor(real_labels))
 			images = Variable(images)
 			gen_labels = Variable(LongTensor(np.random.randint(0, Config.model.n_classes, self.batch_size)))
 			
