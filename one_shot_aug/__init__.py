@@ -5,17 +5,17 @@ from copy import deepcopy
 import numpy as np
 import torch
 from hbconfig import Config
+from one_shot_aug.module import Discriminator, Generator
 from torch.autograd import Variable
 from torchvision.utils import save_image
 
-from one_shot_aug.module import Discriminator, Generator
 from . import utils
 
 
-cuda = True if torch.cuda.is_available() else False
-FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
+# FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+# LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 outerstepsize0 = 0.1  # stepsize of outer optimization, i.e., meta-optimization
+
 
 class OneShotAug():
 	model_name = "OneShotAug"
@@ -23,8 +23,10 @@ class OneShotAug():
 	D_PATH = f"{Config.train.model_dir}/discriminator"
 	
 	def __init__(self):
+		use_cuda = True if torch.cuda.is_available() else False
+		self.device = torch.device("cuda" if use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
-		self.discriminator = Discriminator()
+		self.discriminator = Discriminator().to(self.device)
 		self.generator = Generator()
 	
 	def train_fn(self, criterion, d_optimizer, g_optimizer=None, resume=True):
@@ -43,14 +45,16 @@ class OneShotAug():
 	def _train_epoch(self, data_loader):
 		global d_loss, g_loss, step_count
 		train_loader, validation_loader = data_loader
-		prev_validation_loss = np.infty
+		print(len(train_loader))
+		
 		for curr_step_count, (images, labels) in enumerate(train_loader):
+			images, labels = images.to(self.device), labels.to(self.device)
 			step_count = self.prev_step_count + curr_step_count + 1  # init value
 			self.batch_size = images.shape[0]
 			
 			# Converting to Variable type
-			labels = Variable(labels.type(LongTensor))
-			images = Variable(images)
+			# labels = Variable(labels)
+			# images = Variable(images)
 			weights_before = deepcopy(self.discriminator.state_dict())
 			# Train the discriminator
 			weights_factor_by_validation = 0.
@@ -58,9 +62,9 @@ class OneShotAug():
 				d_loss, validation_loss, validation_accurcy = self._train_discriminator(self.discriminator, images, labels, validation_loader)
 				weights_factor_by_validation += validation_accurcy
 			# TODO consider multiple weights_factor_by_validation by the weights after - maybe bucketing that
-			print("previous_validation loss ={}, current_validation_loss={}".format(prev_validation_loss,validation_loss))
+			print("previous_validation loss ={}, current_validation_loss={}".format(weights_factor_by_validation, d_loss))
 			weights_after = self.discriminator.state_dict()
-			outerstepsize = outerstepsize0 * (1 - curr_step_count / data_loader.__len__)  # linear schedule
+			outerstepsize = outerstepsize0 * (1 - curr_step_count /len(train_loader.dataset))  # linear schedule
 			self.discriminator.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
 			# Step Verbose & Tensorboard Summary
 			if step_count % Config.train.verbose_step_count == 0:
@@ -105,12 +109,11 @@ class OneShotAug():
 		validation_loss = 0.0
 		validation_accurcy = 0
 		for valid_images, valid_labels in validation_set:
+			valid_images, valid_labels = valid_images.to(self.device), valid_labels.to(self.device)
 			valid_predicted_labels = discriminator(valid_images)
-			valid_d_loss = loss(valid_predicted_labels, valid_labels)
-			pred = valid_predicted_labels.view(-1)
-			label = valid_labels.view(-1)
-			validation_loss += valid_d_loss.data[0]
-			validation_accurcy += torch.sum(pred == label.data)
+			validation_loss += loss(valid_predicted_labels, valid_labels).item()
+			pred = valid_predicted_labels.max(1, keepdim=True)[1] # get the index of the max log-probability
+			validation_accurcy += pred.eq(valid_labels.view_as(pred)).sum().item()
 		
 		return d_loss, validation_loss, validation_accurcy
 	
@@ -138,15 +141,7 @@ class OneShotAug():
 	def predict(self):
 		pass
 	
-	def sample_image(self, n_row, batches_done):
-		"""Saves a grid of generated digits ranging from 0 to n_classes"""
-		# Sample noise
-		z = Variable(FloatTensor(Config.random.normal(0, 1, (n_row ** 2, Config.latent_dim))))
-		# Get labels ranging from 0 to n_classes for n rows
-		labels = np.array([num for _ in range(n_row) for num in range(n_row)])
-		labels = Variable(LongTensor(labels))
-		gen_imgs = self.generator(z, labels)
-		save_image(gen_imgs.data, 'images/%d.png' % batches_done, nrow=n_row, normalize=True)
+
 	
 	def build_criterion(self):
 		auxiliary_loss = torch.nn.CrossEntropyLoss()
@@ -156,6 +151,7 @@ class OneShotAug():
 		self.weights_before = deepcopy(model.state_dict())
 		# torch.save(model.state_dict(), path)
 		return self.weights_before
+	
 	def build_optimizers(self, discriminator, generator):
 		d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=Config.train.d_learning_rate, betas=Config.train.optim_betas)
 		g_optimizer = torch.optim.Adam(discriminator.parameters(), lr=Config.train.g_learning_rate, betas=Config.train.optim_betas)  # TODO remove this line
