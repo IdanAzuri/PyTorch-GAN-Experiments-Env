@@ -16,10 +16,10 @@ def get_loader(mode):
 	is_train = mode == "train"
 	
 	if config.model.use_augmentation:
-		transform_list.extend([torchvision.transforms.Resize((224, 224)), torchvision.transforms.ColorJitter(hue=.05, saturation=.05), transforms.RandomResizedCrop(224),
+		transform_list.extend([torchvision.transforms.ColorJitter(hue=.05, saturation=.05),  # transforms.RandomResizedCrop(224),
 		                       transforms.RandomHorizontalFlip(p=0.2), torchvision.transforms.RandomHorizontalFlip(), torchvision.transforms.RandomAffine(45),
 		                       torchvision.transforms.RandomRotation(20)])
-	transform_list.extend([transforms.Resize(config.data.image_size), transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+	transform_list.extend([transforms.Resize(config.data.image_size), transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
 	
 	transform = transforms.Compose(transform_list)
 	
@@ -35,7 +35,7 @@ def get_loader(mode):
 		train_loader = DataLoader(dataset=train_svhn, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_svhn, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	if config.model.dataset == "cifar10":
-		cifar10 = datasets.CIFAR10(root=config.data.cifar10_path, download=True, transform=transforms, train=is_train)
+		cifar10 = datasets.CIFAR10(root=config.data.cifar10_path, download=True, transform=transform, train=is_train)
 		train_cifar, valid_cifar = train_valid_split(cifar10)
 		train_loader = DataLoader(dataset=train_cifar, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_cifar, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)

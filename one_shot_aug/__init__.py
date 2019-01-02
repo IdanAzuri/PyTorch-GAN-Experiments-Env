@@ -43,7 +43,6 @@ class OneShotAug():
 	
 	def _train(self, data_loader):
 		train_loader, validation_loader = data_loader
-		print(len(validation_loader))
 		# switch to train mode
 		if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 			self.classifier.model.features = torch.nn.DataParallel(self.classifier.model.features)
@@ -74,7 +73,7 @@ class OneShotAug():
 		top5 = AverageMeter()
 		end = time.time()
 		
-		bar = Bar('Processing', max=len(train_loader))
+		bar = Bar('Processing', max=len(train_loader.dataset))
 		for batch_idx, (inputs, targets) in enumerate(train_loader):
 			step_count = self.prev_step_count + batch_idx + 1  # init value
 			# measure data loading time
@@ -94,15 +93,15 @@ class OneShotAug():
 			top1.update(prec1[0], inputs.size(0))
 			top5.update(prec5[0], inputs.size(0))
 			
-			weights_before = deepcopy(self.classifier.state_dict())
+			weights_before = deepcopy(self.classifier.model.state_dict())
 			# compute gradient and do SGD step
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
 			
-			weights_after = self.classifier.state_dict()
+			weights_after = self.classifier.model.state_dict()
 			outerstepsize = outerstepsize0 * (1 - batch_idx / len(train_loader.dataset))  # linear schedule
-			self.classifier.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
+			self.classifier.model.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
 			# Step Verbose & Tensorboard Summary
 			if step_count % Config.train.verbose_step_count == 0:
 				self._add_summary(step_count, {"losses_train": losses.avg})
