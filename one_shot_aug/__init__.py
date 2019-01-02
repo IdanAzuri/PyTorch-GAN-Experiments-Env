@@ -48,10 +48,10 @@ class OneShotAug():
 		if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 			self.classifier.model.features = torch.nn.DataParallel(self.classifier.model.features)
 			self.classifier.model.to(self.device)
-		elif self.use_cuda:
+		else:
 			self.classifier.model = torch.nn.DataParallel(self.classifier.model).to(self.device)
-		
-		cudnn.benchmark = True
+		if self.use_cuda:
+			cudnn.benchmark = True
 		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.model.parameters()) / 1000000.0))
 		while True:
 			train_loss, train_acc = self._train_epoch(train_loader)
