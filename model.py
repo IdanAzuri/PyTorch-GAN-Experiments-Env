@@ -23,9 +23,9 @@ class Model():
 				break
 		if self.mode == self.TRAIN_MODE:
 			criterion = model.build_criterion()
-			d_optimizer, g_optimizer = model.build_optimizers(model.discriminator, model.generator)
+			optimizers = model.build_optimizers(model.classifier)
 			
-			return model.train_fn(criterion, d_optimizer, g_optimizer)
+			return model.train_fn(criterion, optimizers)
 		elif self.mode == self.EVALUATE_MODE:
 			return model.evaluate_model()
 		elif self.mode == self.PREDICT_MODE:

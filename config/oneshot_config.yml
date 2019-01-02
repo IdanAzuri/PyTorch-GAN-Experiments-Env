@@ -8,6 +8,12 @@ data:
 
 model:
     name: "OneShotAug"
+    pretrained: True
+    arch: vgg19_bn #resnet,densenet
+    base_width: 4 #resnet params
+    cardinality: 32 # resnet params
+    depth: 29
+    
     z_dim: 100  # Random noise dimension coming into generator, per output vector
     real_dim: 784  #$image_size * image_size
     channels: 3
@@ -18,16 +24,8 @@ model:
     
     dropout: 0.3
     use_augmentation: False
-    dataset: mnist
+    dataset: cifar10
     n_classes: 10
-    # for init
-    g_h1: 256
-    g_h2: 512
-    g_h3: 1024
-    
-    d_h1: 56
-    d_h2: 32
-    d_h3: 16
 
 train:
     model_dir: "logs/oneshot"
