@@ -9,7 +9,7 @@ data:
 model:
     name: "OneShotAug"
     pretrained: True
-    arch: vgg19_bn #resnet,densenet
+    arch: vgg16_bn #resnet,densenet
     base_width: 4 #resnet params
     cardinality: 32 # resnet params
     depth: 29
