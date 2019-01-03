@@ -4,7 +4,7 @@ data:
     svhn_path: "data/svhn"
     cifar10_path: "data/cifar10"
     miniimagenet: "data/miniimagenet"
-    image_size: 240
+    image_size: 84
     num_workers: 6
 
 model:
@@ -32,7 +32,7 @@ model:
 train:
     model_dir: "logs/oneshot"
     batch_size: 64
-    train_steps: 50000
+    train_steps: 5000
     shuffle: true
     
     d_learning_rate: 0.0002  # 2e-4
