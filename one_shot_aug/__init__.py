@@ -27,8 +27,6 @@ class OneShotAug():
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
 		self.classifier = MiniImageNetModel()
-		self.classifier = torch.nn.DataParallel(self.classifier)
-	
 		self.learning_rate = Config.train.d_learning_rate
 		self.c_path = f"{Config.train.model_dir}/classifier"
 		mkdir_p(self.c_path)
@@ -54,6 +52,7 @@ class OneShotAug():
 		if self.use_cuda:
 			cudnn.benchmark = True
 		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
+		self.classifier = torch.nn.DataParallel(self.classifier)
 		while True:
 			train_loss, train_acc = self._train_epoch(train_loader)
 			test_loss, test_acc = self.evaluate_model(validation_loader)
