@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import torch
 import torchvision
@@ -43,6 +45,13 @@ def get_loader(mode):
 		train_moons, valid_moons = train_valid_split(moons_dataset())
 		train_loader = DataLoader(dataset=train_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+	if config.model.dataset == "imagenet":
+		train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_train)
+		valid_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_valid)
+		test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
+		train_loader = DataLoader(dataset=train_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+		valid_loader = DataLoader(dataset=valid_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+		# test_loader = DataLoader(dataset=test_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	return train_loader, valid_loader
 
 
@@ -67,7 +76,7 @@ class GenHelper(Dataset):
 		return self.length
 
 
-def train_valid_split(ds, split_fold=10, random_seed=None):
+def train_valid_split(dataset, split_fold=10, random_seed=None):
 	'''
 	This is a pytorch generic function that takes a data.Dataset object and splits it to validation and training
 	efficiently.
@@ -76,16 +85,17 @@ def train_valid_split(ds, split_fold=10, random_seed=None):
 	if random_seed != None:
 		np.random.seed(random_seed)
 	
-	dslen = len(ds)
+	dslen = len(dataset)
 	indices = list(range(dslen))
 	valid_size = dslen // split_fold
 	np.random.shuffle(indices)
 	train_mapping = indices[valid_size:]
 	valid_mapping = indices[:valid_size]
-	train = GenHelper(ds, dslen - valid_size, train_mapping)
-	valid = GenHelper(ds, valid_size, valid_mapping)
+	train = GenHelper(dataset, dslen - valid_size, train_mapping)
+	valid = GenHelper(dataset, valid_size, valid_mapping)
 	
 	return train, valid
+
 
 
 def to_categorical(y, num_classes):
@@ -113,3 +123,4 @@ def moons_dataset():
 	y = to_categorical(y, 2)
 	ds = PrepareData(X=X, y=y)
 	return ds  # ds = DataLoader(ds, batch_size=50, shuffle=True)
+

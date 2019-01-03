@@ -59,13 +59,6 @@ class Discriminator(nn.Module):
 		# Output layers
 		self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1), nn.Sigmoid())
 		self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, Config.model.n_classes), nn.Softmax())
-	
-		# The height and width of downsampled image
-		ds_size = Config.data.image_size // 2 ** 4
-		
-		# Output layers
-		self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1), nn.Sigmoid())
-		self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, Config.model.n_classes), nn.Softmax())
 
 	def forward(self, image):
 		out = self.conv_blocks(image)

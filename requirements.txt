@@ -1,3 +1,4 @@
+progress
 torch
 torchvision
 hb-config

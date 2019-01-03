@@ -10,7 +10,7 @@ from torch.backends import cudnn
 from torch.optim import lr_scheduler
 
 from logger import Logger
-from one_shot_aug.module import PretrainedClassifier
+from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
 from . import utils
 
@@ -26,7 +26,7 @@ class OneShotAug():
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
-		self.classifier = PretrainedClassifier()
+		self.classifier = MiniImageNetModel()
 		self.learning_rate = Config.train.d_learning_rate
 		self.c_path = f"{Config.train.model_dir}/classifier"
 		mkdir_p(self.c_path)
@@ -45,13 +45,13 @@ class OneShotAug():
 		train_loader, validation_loader = data_loader
 		# switch to train mode
 		if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
-			self.classifier.model.features = torch.nn.DataParallel(self.classifier.model.features)
-			self.classifier.model.to(self.device)
+			self.classifier.filters = torch.nn.DataParallel(Config.model.filters)
+			self.classifier.to(self.device)
 		else:
-			self.classifier.model = torch.nn.DataParallel(self.classifier.model).to(self.device)
+			self.classifier = torch.nn.DataParallel(self.classifier).to(self.device)
 		if self.use_cuda:
 			cudnn.benchmark = True
-		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.model.parameters()) / 1000000.0))
+		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
 		while True:
 			train_loss, train_acc = self._train_epoch(train_loader)
 			test_loss, test_acc = self.evaluate_model(validation_loader)
@@ -59,12 +59,11 @@ class OneShotAug():
 			self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
 	
 	def _train_epoch(self, train_loader):
-		global step_count
 		# update learning rate
 		exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=7, gamma=0.1)
 		exp_lr_scheduler.step()
 		
-		self.classifier.model.train()
+		self.classifier.train()
 		
 		batch_time = AverageMeter()
 		data_time = AverageMeter()
@@ -74,37 +73,40 @@ class OneShotAug():
 		end = time.time()
 		
 		bar = Bar('Processing', max=len(train_loader.dataset))
+		# for _ in range(meta_batch_size):
+		# 	mini_dataset = _sample_mini_dataset(dataset, num_classes, num_shots)
+		# 	mini_batches = inner_mini_batches(mini_dataset, inner_batch_size, inner_iters, replacement)
 		for batch_idx, (inputs, targets) in enumerate(train_loader):
-			step_count = self.prev_step_count + batch_idx + 1  # init value
+			self.step_count = self.prev_step_count + batch_idx + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
 			if self.use_cuda:
-				inputs, targets = inputs.cuda(), targets.cuda(async=True)
+				inputs, targets = inputs.cuda(), targets.cuda()
 			inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 			
 			# compute output
-			outputs = self.classifier.model(inputs)
+			outputs = self.classifier(inputs)
 			loss = self.loss_criterion(outputs, targets)
 			
 			# measure accuracy and record loss
 			prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
-			losses.update(loss.data[0], inputs.size(0))
-			top1.update(prec1[0], inputs.size(0))
-			top5.update(prec5[0], inputs.size(0))
+			losses.update(loss.data.item(), inputs.size(0))
+			top1.update(prec1.item(), inputs.size(0))
+			top5.update(prec5.item(), inputs.size(0))
 			
-			weights_before = deepcopy(self.classifier.model.state_dict())
+			# weights_before = deepcopy(self.classifier.model.state_dict())
 			# compute gradient and do SGD step
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
 			
-			weights_after = self.classifier.model.state_dict()
-			outerstepsize = outerstepsize0 * (1 - batch_idx / len(train_loader.dataset))  # linear schedule
-			self.classifier.model.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
+			# weights_after = self.classifier.model.state_dict()
+			# outerstepsize = outerstepsize0 * (1 - batch_idx / len(train_loader.dataset))  # linear schedule
+			# self.classifier.model.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
 			# Step Verbose & Tensorboard Summary
-			if step_count % Config.train.verbose_step_count == 0:
-				self._add_summary(step_count, {"losses_train": losses.avg})
+			if self.step_count % Config.train.verbose_step_count == 0:
+				self._add_summary(self.step_count, {"losses_train": losses.avg})
 			
 			# measure elapsed time
 			batch_time.update(time.time() - end)
@@ -117,15 +119,15 @@ class OneShotAug():
 			bar.next()
 		bar.finish()
 		# Save model parameters
-		if step_count % Config.train.save_checkpoints_steps == 0:
-			utils.save_checkpoint(step_count, self.c_path, self.classifier, self.classifier_optimizer)
-		self.prev_step_count = step_count
-		if step_count >= Config.train.train_steps:
+		if self.step_count % Config.train.save_checkpoints_steps == 0:
+			utils.save_checkpoint(self.step_count, self.c_path, self.classifier, self.classifier_optimizer)
+		self.prev_step_count = self.step_count
+		if self.step_count >= Config.train.train_steps:
 			sys.exit()
 		return losses.avg, top1.avg
 	
 	def evaluate_model(self, data_loader):
-		self.classifier.model.eval()
+		self.classifier.eval()
 		
 		batch_time = AverageMeter()
 		data_time = AverageMeter()
@@ -145,7 +147,7 @@ class OneShotAug():
 			inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
 			
 			# compute output
-			outputs = self.classifier.model(inputs)
+			outputs = self.classifier(inputs)
 			loss = self.loss_criterion(outputs, targets)
 			
 			# measure accuracy and record loss
@@ -179,7 +181,7 @@ class OneShotAug():
 	
 	def build_optimizers(self, classifier):
 		
-		classifier_optimizer = torch.optim.Adam(classifier.model.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)
+		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)
 		
 		return classifier_optimizer
 	
