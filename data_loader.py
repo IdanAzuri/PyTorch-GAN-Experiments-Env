@@ -45,7 +45,7 @@ def get_loader(mode):
 		train_moons, valid_moons = train_valid_split(moons_dataset())
 		train_loader = DataLoader(dataset=train_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
-	if config.model.dataset == "imagenet":
+	if config.model.dataset == "miniimagenet":
 		train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_train)
 		valid_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_valid)
 		test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
