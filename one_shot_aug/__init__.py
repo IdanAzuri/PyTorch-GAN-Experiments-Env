@@ -27,6 +27,8 @@ class OneShotAug():
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
 		self.classifier = MiniImageNetModel()
+		self.classifier = torch.nn.DataParallel(self.classifier)
+	
 		self.learning_rate = Config.train.d_learning_rate
 		self.c_path = f"{Config.train.model_dir}/classifier"
 		mkdir_p(self.c_path)
