@@ -32,7 +32,7 @@ model:
 train:
     model_dir: "logs/oneshot"
     batch_size: 64
-    train_steps: 5000
+    train_steps: 50
     shuffle: true
     
     d_learning_rate: 0.0002  # 2e-4
