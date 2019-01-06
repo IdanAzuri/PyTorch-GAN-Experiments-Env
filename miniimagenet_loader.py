@@ -13,6 +13,16 @@ import numpy as np
 from PIL import Image
 
 
+def read_dataset_test(data_dir):
+	"""
+	Read the Mini-ImageNet dataset.
+	Args:
+	  data_dir: directory containing Mini-ImageNet.
+	Returns:
+	  A tuple (train, val, test) of sequences of
+		ImageNetClass instances.
+	"""
+	return tuple(_read_classes(os.path.join(data_dir, x)) for x in ['test'])
 def read_dataset(data_dir):
 	"""
 	Read the Mini-ImageNet dataset.
@@ -22,8 +32,7 @@ def read_dataset(data_dir):
 	  A tuple (train, val, test) of sequences of
 		ImageNetClass instances.
 	"""
-	return tuple(_read_classes(os.path.join(data_dir, x)) for x in ['train', 'val', 'test'])
-
+	return tuple(_read_classes(os.path.join(data_dir, x)) for x in ['train', 'val'])#, 'test'
 
 def _read_classes(dir_path):
 	"""

@@ -14,10 +14,10 @@ def main(mode):
 	model_func = model.model_builder()
 	
 	if mode == Model.TRAIN_MODE:
-		if Config.model.dataset == "miniimagenet":
-			train_and_valid_loaders = read_dataset(DATA_DIR) # train_set, val_set, test_set
-		else:
-			train_and_valid_loaders = get_loader("train")
+		# if Config.model.dataset == "miniimagenet":
+		# 	train_and_valid_loaders = read_dataset(DATA_DIR) # train_set, val_set, test_set
+		# else:
+		train_and_valid_loaders = get_loader("train")
 		model_func(train_and_valid_loaders)
 	elif mode == Model.PREDICT_MODE:
 		model_func(Config.predict.batch_size)

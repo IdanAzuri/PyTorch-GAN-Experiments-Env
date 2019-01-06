@@ -3,7 +3,8 @@ data:
     mnist_path: "data/mnist"
     svhn_path: "data/svhn"
     cifar10_path: "data/cifar10"
-    miniimagenet: "data/miniimagenet"
+    miniimagenet_path_train: "data/miniimagenet/train"
+    miniimagenet_path_valid: "data/miniimagenet/val"
     image_size: 84
     num_workers: 6
 
