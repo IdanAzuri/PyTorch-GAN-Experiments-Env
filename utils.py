@@ -2,9 +2,8 @@
 import json
 import os.path
 
-from hbconfig import Config
 import requests
-
+from hbconfig import Config
 
 
 def send_message_to_slack(config_name):
@@ -60,3 +59,13 @@ def plot_images(images, cls_true, cls_pred=None):
         ax.set_yticks([])
     
     plt.show()
+
+
+def saving_config(path):
+    with open(path, "w+") as text_file:
+        text_file.write(f"Config: {Config}")
+        if Config.get("description", None):
+            text_file.write("Config: {}".format(Config))
+            text_file.write("Config Description")
+            for key, value in Config.description.items():
+                text_file.write(f" - {key}: {value}")

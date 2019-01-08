@@ -26,7 +26,7 @@ model:
     use_dropout: True
     dropout: 0.3
     use_augmentation: True
-    dataset: miniimagenet
+    dataset: cifar10
     n_classes: 10
 
 train:

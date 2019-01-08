@@ -2,17 +2,18 @@ import os
 import sys
 import time
 from copy import deepcopy
-from torch.autograd import Variable
 
 import torch
 from hbconfig import Config
 from progress.bar import Bar
+from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.optim import lr_scheduler
 
 from logger import Logger
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
+from utils import saving_config
 from . import utils
 
 
@@ -31,6 +32,10 @@ class OneShotAug():
 		self.learning_rate = Config.train.d_learning_rate
 		self.c_path = f"{Config.train.model_dir}/classifier"
 		mkdir_p(self.c_path)
+		# Print Config setting
+		saving_config(os.path.join(self.c_path, "config_log.txt"))
+	
+
 	
 	def train_fn(self, criterion, optimizer, resume=True):
 		self.loss_criterion = criterion
