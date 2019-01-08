@@ -31,7 +31,7 @@ class OneShotAug():
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
 		self.classifier = MiniImageNetModel()
-		self.learning_rate = Config.train.d_learning_rate
+		self.learning_rate = Config.train.learning_rate
 		self.c_path = f"{Config.train.model_dir}/classifier"
 		mkdir_p(self.c_path)
 		# Print Config setting
@@ -163,7 +163,8 @@ class OneShotAug():
 			data_time.update(time.time() - end)
 			
 			if self.use_cuda:
-				inputs, labels = Variable(torch.from_numpy(np.asarray(inputs)).cuda()), Variable(labels.cuda())
+				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size))).cuda()
+				labels = Variable(torch.from_numpy(np.array(labels))).cuda()
 			else:
 				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size)))
 				labels = Variable(torch.from_numpy(np.array(labels)))

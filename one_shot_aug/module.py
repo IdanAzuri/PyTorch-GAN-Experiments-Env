@@ -93,7 +93,7 @@ class MiniImageNetModel(nn.Module):
 		# The height and width of downsampled image
 		ds_size = Config.data.image_size // 2 ** 4
 		
-		self.layer1 = _conv_layer(Config.model.channels, self.n_filters, 3)
+		self.layer1 = _conv_layer(Config.data.channels, self.n_filters, 3)
 		self.layer2 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer3 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer4 = _conv_layer(self.n_filters, self.n_filters, 3)
