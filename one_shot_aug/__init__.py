@@ -32,8 +32,10 @@ class OneShotAug():
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
 		self.classifier = MiniImageNetModel()
 		self.learning_rate = Config.train.learning_rate
-		self.c_path = f"{Config.train.model_dir}/classifier"
+		self.c_path = f"{Config.train.model_dir}/log"
+		self.model_path = f"{Config.train.model_dir}/model"
 		mkdir_p(self.c_path)
+		mkdir_p(self.model_path)
 		# Print Config setting
 		saving_config(os.path.join(self.c_path, "config_log.txt"))
 	
@@ -42,7 +44,7 @@ class OneShotAug():
 		self.classifier_optimizer = optimizer
 		
 		if resume:
-			self.prev_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.c_path, self.classifier, self.classifier_optimizer)
+			self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
 		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.classifier.title)
 		self.logger.set_names(['Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
 		return self._train
@@ -64,8 +66,7 @@ class OneShotAug():
 				print("Let's use", torch.cuda.device_count(), "GPUs!")
 		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
 		while True:
-			self.step_count = self.prev_step_count + 1  # init value
-		
+			self.meta_step_count = self.prev_meta_step_count + 1  # init value
 			for _ in range(self.meta_batch_size):
 					mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
 					mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
@@ -75,16 +76,14 @@ class OneShotAug():
 					test_loss, test_acc = self.evaluate_model(mini_valid_batches)
 					# append logger file
 					self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
-			self.prev_step_count = self.step_count
-			if self.step_count >= Config.train.meta_iters:
+			self.prev_meta_step_count = self.meta_step_count
+			# update learning rate
+			exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=5000, gamma=0.1)
+			exp_lr_scheduler.step()
+			if self.meta_step_count >= Config.train.meta_iters:
 				sys.exit()
 	def _train_epoch(self, train_loader):
-		# update learning rate
-		exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=7, gamma=0.1)
-		exp_lr_scheduler.step()
-		
 		self.classifier.train()
-		
 		batch_time = AverageMeter()
 		data_time = AverageMeter()
 		losses = AverageMeter()
@@ -95,6 +94,7 @@ class OneShotAug():
 			bar = Bar('Processing', max=self.num_classes * self.num_shots)
 		for batch_idx, batch in enumerate(train_loader):
 			(inputs, labels) = zip(*batch)
+			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
@@ -124,8 +124,8 @@ class OneShotAug():
 			# outerstepsize = outerstepsize0 * (1 - batch_idx / len(train_loader.dataset))  # linear schedule
 			# self.classifier.model.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
 			# Step Verbose & Tensorboard Summary
-			if self.step_count % Config.train.verbose_step_count == 0:
-				self._add_summary(self.step_count, {"loss_train": losses.avg})
+			if self.meta_step_count + batch_idx % Config.train.verbose_step_count == 0:
+				self._add_summary(self.meta_step_count, {"loss_train": losses.avg})
 			
 			# measure elapsed time
 			batch_time.update(time.time() - end)
@@ -140,8 +140,8 @@ class OneShotAug():
 		if Config.train.show_progrees_bar:
 			bar.finish()
 		# Save model parameters
-		if self.step_count % Config.train.save_checkpoints_steps == 0:
-			utils.save_checkpoint(self.step_count, self.c_path, self.classifier, self.classifier_optimizer)
+		if self.meta_step_count % Config.train.verbose_step_count == 0:
+			utils.save_checkpoint(self.meta_step_count, self.model_path, self.classifier, self.classifier_optimizer)
 		
 		return losses.avg, top1.avg
 	
@@ -155,10 +155,9 @@ class OneShotAug():
 		top5 = AverageMeter()
 		end = time.time()
 		
-		bar = Bar('Processing', max=self.num_classes * self.num_shots)
 		for batch_idx, batch in enumerate(data_loader):
 			(inputs, labels) = zip(*batch)
-			step_count = self.prev_step_count + batch_idx + 1  # init value
+			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
@@ -183,12 +182,6 @@ class OneShotAug():
 			if step_count % Config.train.verbose_step_count == 0:
 				self._add_summary(step_count, {"loss_valid": losses.avg})
 			
-			# plot progress
-			bar.suffix = '({batch}/{size}) Data: {data:} | Batch: {bt:} | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
-				batch=batch_idx + 1, size=self.num_classes*self.num_shots, data=data_time.avg, bt=batch_time.avg, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
-				top5=top5.avg, )
-			bar.next()
-		bar.finish()
 		return losses.avg, top1.avg
 	
 	def predict(self):

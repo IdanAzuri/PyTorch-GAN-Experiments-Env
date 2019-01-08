@@ -34,7 +34,7 @@ model:
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
 train:
-    model_dir: "logs/miniimagenet"
+    model_dir: "outputs/miniimagenet"
     batch_size: 64
     shuffle: true
     
