@@ -140,7 +140,7 @@ class OneShotAug():
 		if Config.train.show_progrees_bar:
 			bar.finish()
 		# Save model parameters
-		if self.meta_step_count % Config.train.verbose_step_count == 0:
+		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(self.meta_step_count, self.model_path, self.classifier, self.classifier_optimizer)
 		
 		return losses.avg, top1.avg
