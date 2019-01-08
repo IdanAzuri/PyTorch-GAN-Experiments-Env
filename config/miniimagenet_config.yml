@@ -26,7 +26,7 @@ model:
     conv4: 128
     use_dropout: True
     dropout: 0.3
-    use_augmentation: True
+    use_augmentation: False
     dataset: miniimagenet
 #    total_train_classes: 65 #miniimagenet
 #    total_valid_classes: 20 #miniimagenet
@@ -44,8 +44,8 @@ train:
         - 0.999
     
     save_checkpoints_steps: 1000
-    verbose_step_count: 1
-    show_progrees_bar: True
+    verbose_step_count: 500
+    show_progrees_bar: False
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
     inner_iters: 20 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.

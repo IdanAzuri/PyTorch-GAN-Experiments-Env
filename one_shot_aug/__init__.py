@@ -92,7 +92,6 @@ class OneShotAug():
 		for batch_idx, batch in enumerate(train_loader):
 			(inputs, labels) = zip(*batch)
 			self.step_count = self.prev_step_count + batch_idx + 1  # init value
-			print(self.step_count)
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
