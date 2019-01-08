@@ -39,7 +39,10 @@ if __name__ == '__main__':
 		print("Config Description")
 		for key, value in Config.description.items():
 			print(f" - {key}: {value}")
-	
+
+	torch.manual_seed(Config.model.seed)
+	torch.cuda.manual_seed_all(Config.model.seed)
+	np.random.seed(Config.model.seed)
 	# After terminated Notification to Slack
 	atexit.register(utils.send_message_to_slack, config_name=args.config)
 	

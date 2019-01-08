@@ -3,14 +3,15 @@ data:
     mnist_path: "data/mnist"
     svhn_path: "data/svhn"
     cifar10_path: "data/cifar10"
-    miniimagenet_path_train: "data/miniimagenet/train"
-    miniimagenet_path_valid: "data/miniimagenet/val"
+    miniimagenet_path: "data/miniimagenet"
     image_size: 84
     num_workers: 6
+    channels: 3
 
 model:
     name: "OneShotAug"
     pretrained: True
+    seed: 222
     arch: vgg16_bn #resnet,densenet
     base_width: 4 #resnet params
     cardinality: 32 # resnet params
@@ -18,7 +19,6 @@ model:
     
     z_dim: 100  # Random noise dimension coming into generator, per output vector
     real_dim: 1024  #$image_size * image_size
-    channels: 3
     filters: 64
     conv1: 16
     conv2: 32
@@ -28,14 +28,14 @@ model:
     dropout: 0.3
     use_augmentation: True
     dataset: miniimagenet
-    n_classes: 65
-    #n_classes_valid: 20
-    #n_classes_tets: 15
-
+#    total_train_classes: 65 #miniimagenet
+#    total_valid_classes: 20 #miniimagenet
+#    total_test_classes: 15 #miniimagenet
+    n_classes: 5 # number of data classes to sample.
+    num_smaples_in_shot: 1 # number of examples per data class.
 train:
     model_dir: "logs/miniimagenet"
     batch_size: 64
-    train_steps: 50000
     shuffle: true
     
     d_learning_rate: 0.0002  # 2e-4
@@ -45,8 +45,13 @@ train:
         - 0.999
     
     save_checkpoints_steps: 1000
-    verbose_step_count: 100
-    show_progrees_bar: False
+    verbose_step_count: 1
+    show_progrees_bar: True
+    inner_batch_size: 5 # batch size for every inner-loop training iteration.
+    inner_iters: 20 #n umber of inner-loop iterations.
+    replacement: False # sample with replacement.
+    meta_batch_size: 1 # how many inner-loops to run
+    meta_iters: 400000 # epochs
 predict:
     batch_size: 64
 

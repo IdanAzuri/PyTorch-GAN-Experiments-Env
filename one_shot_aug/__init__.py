@@ -1,8 +1,10 @@
 import os
+import random
 import sys
 import time
 from copy import deepcopy
 
+import numpy as np
 import torch
 from hbconfig import Config
 from progress.bar import Bar
@@ -35,8 +37,6 @@ class OneShotAug():
 		# Print Config setting
 		saving_config(os.path.join(self.c_path, "config_log.txt"))
 	
-
-	
 	def train_fn(self, criterion, optimizer, resume=True):
 		self.loss_criterion = criterion
 		self.classifier_optimizer = optimizer
@@ -49,10 +49,14 @@ class OneShotAug():
 	
 	def _train(self, data_loader):
 		train_loader, validation_loader = data_loader
+		self.num_classes = Config.model.n_classes
+		self.num_shots = Config.model.num_smaples_in_shot
+		self.inner_batch_size = Config.train.inner_batch_size
+		self.inner_iters = Config.train.inner_iters
+		self.replacement = Config.train.replacement
+		self.meta_batch_size = Config.train.meta_batch_size
 		# switch to train mode
 		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
-		
-
 		if self.use_cuda:
 			cudnn.benchmark = True
 			self.classifier = torch.nn.DataParallel(self.classifier).to(self.device)
@@ -60,10 +64,15 @@ class OneShotAug():
 				print("Let's use", torch.cuda.device_count(), "GPUs!")
 		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
 		while True:
-			train_loss, train_acc = self._train_epoch(train_loader)
-			test_loss, test_acc = self.evaluate_model(validation_loader)
-			# append logger file
-			self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
+			for _ in range(self.meta_batch_size):
+				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+				mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+				train_loss, train_acc = self._train_epoch(mini_train_batches)
+				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
+				mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+				test_loss, test_acc = self.evaluate_model(mini_valid_batches)
+				# append logger file
+				self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
 	
 	def _train_epoch(self, train_loader):
 		# update learning rate
@@ -78,22 +87,27 @@ class OneShotAug():
 		top1 = AverageMeter()
 		top5 = AverageMeter()
 		end = time.time()
-		# if Config.tran.show_progrees_bar:
-		bar = Bar('Processing', max=len(train_loader.dataset))
-		for batch_idx, (inputs, targets) in enumerate(train_loader):
+		if Config.train.show_progrees_bar:
+			bar = Bar('Processing', max=self.num_classes * self.num_shots)
+		for batch_idx, batch in enumerate(train_loader):
+			(inputs, labels) = zip(*batch)
 			self.step_count = self.prev_step_count + batch_idx + 1  # init value
+			print(self.step_count)
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
 			if self.use_cuda:
-				inputs, targets = Variable(inputs.cuda()), Variable(targets.cuda())
-			
+				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(self.inner_batch_size, Config.data.channels, Config.data.image_size, Config.data.image_size))).cuda()
+				labels = Variable(torch.from_numpy(np.array(labels))).cuda()
+			else:
+				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(self.inner_batch_size, Config.data.channels, Config.data.image_size, Config.data.image_size)))
+				labels = Variable(torch.from_numpy(np.array(labels)))
 			# compute output
 			outputs = self.classifier(inputs)
-			loss = self.loss_criterion(outputs, targets)
+			loss = self.loss_criterion(outputs, labels)
 			
 			# measure accuracy and record loss
-			prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
+			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 			losses.update(loss.data.item(), inputs.size(0))
 			top1.update(prec1.item(), inputs.size(0))
 			top5.update(prec5.item(), inputs.size(0))
@@ -109,25 +123,25 @@ class OneShotAug():
 			# self.classifier.model.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
 			# Step Verbose & Tensorboard Summary
 			if self.step_count % Config.train.verbose_step_count == 0:
-				self._add_summary(self.step_count, {"losses_train": losses.avg})
+				self._add_summary(self.step_count, {"loss_train": losses.avg})
 			
 			# measure elapsed time
 			batch_time.update(time.time() - end)
 			end = time.time()
 			
 			# plot progress
-			# if Config.tran.show_progrees_bar:
-			bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
-				batch=batch_idx + 1, size=len(train_loader), data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
-				top5=top5.avg)
-			bar.next()
-		# if Config.tran.show_progrees_bar:
-		bar.finish()
+			if Config.train.show_progrees_bar:
+				bar.suffix = '({batch}/{size}) Data: {data:} | Batch: {bt:} | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+					batch=batch_idx + 1, size=self.num_classes*self.num_shots, data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
+					top5=top5.avg)
+				bar.next()
+		if Config.train.show_progrees_bar:
+			bar.finish()
 		# Save model parameters
 		if self.step_count % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(self.step_count, self.c_path, self.classifier, self.classifier_optimizer)
 		self.prev_step_count = self.step_count
-		if self.step_count >= Config.train.train_steps:
+		if self.step_count >= Config.train.meta_iters:
 			sys.exit()
 		return losses.avg, top1.avg
 	
@@ -141,33 +155,36 @@ class OneShotAug():
 		top5 = AverageMeter()
 		end = time.time()
 		
-		bar = Bar('Processing', max=len(data_loader))
-		for batch_idx, (inputs, targets) in enumerate(data_loader):
+		bar = Bar('Processing', max=self.num_classes * self.num_shots)
+		for batch_idx, batch in enumerate(data_loader):
+			(inputs, labels) = zip(*batch)
 			step_count = self.prev_step_count + batch_idx + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
 			if self.use_cuda:
-				inputs, targets = inputs.cuda(), targets.cuda(async=True)
-			inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+				inputs, labels = Variable(torch.from_numpy(np.asarray(inputs)).cuda()), Variable(labels.cuda())
+			else:
+				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size)))
+				labels = Variable(torch.from_numpy(np.array(labels)))
 			
 			# compute output
 			outputs = self.classifier(inputs)
-			loss = self.loss_criterion(outputs, targets)
+			loss = self.loss_criterion(outputs, labels)
 			
 			# measure accuracy and record loss
-			prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
+			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 			losses.update(loss.data.item(), inputs.size(0))
-			top1.update(prec1[0], inputs.size(0))
-			top5.update(prec5[0], inputs.size(0))
+			top1.update(prec1.item(), inputs.size(0))
+			top5.update(prec5.item(), inputs.size(0))
 			
 			# Step Verbose & Tensorboard Summary
 			if step_count % Config.train.verbose_step_count == 0:
 				self._add_summary(step_count, {"loss_valid": losses.avg})
 			
 			# plot progress
-			bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
-				batch=batch_idx + 1, size=len(data_loader), data=data_time.avg, bt=batch_time.avg, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
+			bar.suffix = '({batch}/{size}) Data: {data:} | Batch: {bt:} | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+				batch=batch_idx + 1, size=self.num_classes*self.num_shots, data=data_time.avg, bt=batch_time.avg, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
 				top5=top5.avg, )
 			bar.next()
 		bar.finish()
@@ -193,3 +210,69 @@ class OneShotAug():
 	def _add_summary(self, step, summary):
 		for tag, value in summary.items():
 			self.tensorboard.scalar_summary(tag, value, step)
+
+
+def _sample_mini_dataset(dataset, num_classes, num_shots):
+	"""
+	Sample a few shot task from a dataset.
+	Returns:
+	  An iterable of (input, label) pairs.
+	"""
+	shuffled = list(dataset)
+	random.shuffle(shuffled)
+	for class_idx, class_obj in enumerate(shuffled[:num_classes]):
+		for sample in class_obj.sample(num_shots):
+			yield (sample, class_idx)
+
+
+def _mini_batches(samples, batch_size, num_batches, replacement):
+	"""
+	Generate mini-batches from some data.
+	Returns:
+	  An iterable of sequences of (input, label) pairs,
+		where each sequence is a mini-batch.
+	"""
+	samples = list(samples)
+	if replacement:
+		for _ in range(num_batches):
+			yield random.sample(samples, batch_size)
+		return
+	cur_batch = []
+	batch_count = 0
+	while True:
+		random.shuffle(samples)
+		for sample in samples:
+			cur_batch.append(sample)
+			if len(cur_batch) < batch_size:
+				continue
+			yield cur_batch
+			cur_batch = []
+			batch_count += 1
+			if batch_count == num_batches:
+				return
+
+
+def _split_train_test(samples, test_shots=1):
+	"""
+	Split a few-shot task into a train and a test set.
+	Args:
+	  samples: an iterable of (input, label) pairs.
+	  test_shots: the number of examples per class in the
+		test set.
+	Returns:
+	  A tuple (train, test), where train and test are
+		sequences of (input, label) pairs.
+	"""
+	train_set = list(samples)
+	test_set = []
+	labels = set(item[1] for item in train_set)
+	for _ in range(test_shots):
+		for label in labels:
+			for i, item in enumerate(train_set):
+				if item[1] == label:
+					del train_set[i]
+					test_set.append(item)
+					break
+	if len(test_set) < len(labels) * test_shots:
+		raise IndexError('not enough examples of each class for test set')
+	return train_set, test_set

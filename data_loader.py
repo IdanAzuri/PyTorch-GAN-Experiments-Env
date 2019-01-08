@@ -9,6 +9,8 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets
 from torchvision import transforms
 
+from miniimagenet_loader import read_dataset
+
 
 def get_loader(mode):
 	"""Builds and returns Dataloader for MNIST and SVHN dataset."""
@@ -46,8 +48,11 @@ def get_loader(mode):
 		train_loader = DataLoader(dataset=train_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	if config.model.dataset == "miniimagenet":
-		train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_train,transform=transform)
-		valid_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_valid,transform=transform)
+		train_loader, valid_loader = read_dataset(Config.data.miniimagenet_path)
+		# transform(train_loader)
+	if config.model.dataset == "miniimagenet_all":
+		train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform)
+		valid_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform)
 		# test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
 		train_loader = DataLoader(dataset=train_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
