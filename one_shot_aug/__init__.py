@@ -64,16 +64,20 @@ class OneShotAug():
 				print("Let's use", torch.cuda.device_count(), "GPUs!")
 		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
 		while True:
+			self.step_count = self.prev_step_count + 1  # init value
+		
 			for _ in range(self.meta_batch_size):
-				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
-				mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-				train_loss, train_acc = self._train_epoch(mini_train_batches)
-				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
-				mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-				test_loss, test_acc = self.evaluate_model(mini_valid_batches)
-				# append logger file
-				self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
-	
+					mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+					mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+					train_loss, train_acc = self._train_epoch(mini_train_batches)
+					mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
+					mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+					test_loss, test_acc = self.evaluate_model(mini_valid_batches)
+					# append logger file
+					self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
+			self.prev_step_count = self.step_count
+			if self.step_count >= Config.train.meta_iters:
+				sys.exit()
 	def _train_epoch(self, train_loader):
 		# update learning rate
 		exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=7, gamma=0.1)
@@ -91,7 +95,6 @@ class OneShotAug():
 			bar = Bar('Processing', max=self.num_classes * self.num_shots)
 		for batch_idx, batch in enumerate(train_loader):
 			(inputs, labels) = zip(*batch)
-			self.step_count = self.prev_step_count + batch_idx + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
@@ -139,9 +142,7 @@ class OneShotAug():
 		# Save model parameters
 		if self.step_count % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(self.step_count, self.c_path, self.classifier, self.classifier_optimizer)
-		self.prev_step_count = self.step_count
-		if self.step_count >= Config.train.meta_iters:
-			sys.exit()
+		
 		return losses.avg, top1.avg
 	
 	def evaluate_model(self, data_loader):
