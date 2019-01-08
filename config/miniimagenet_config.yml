@@ -28,10 +28,12 @@ model:
     dropout: 0.3
     use_augmentation: True
     dataset: miniimagenet
-    n_classes: 10
+    n_classes: 65
+    #n_classes_valid: 20
+    #n_classes_tets: 15
 
 train:
-    model_dir: "logs/oneshot"
+    model_dir: "logs/miniimagenet"
     batch_size: 64
     train_steps: 50000
     shuffle: true
@@ -44,7 +46,7 @@ train:
     
     save_checkpoints_steps: 1000
     verbose_step_count: 100
-
+    show_progrees_bar: False
 predict:
     batch_size: 64
 

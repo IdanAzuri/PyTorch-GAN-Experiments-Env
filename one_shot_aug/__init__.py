@@ -2,6 +2,7 @@ import os
 import sys
 import time
 from copy import deepcopy
+from torch.autograd import Variable
 
 import torch
 from hbconfig import Config
@@ -44,15 +45,15 @@ class OneShotAug():
 	def _train(self, data_loader):
 		train_loader, validation_loader = data_loader
 		# switch to train mode
-		if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
-			self.classifier.filters = torch.nn.DataParallel(Config.model.filters)
-			self.classifier.to(self.device)
-		else:
-			self.classifier = torch.nn.DataParallel(self.classifier).to(self.device)
+		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
+		
+
 		if self.use_cuda:
 			cudnn.benchmark = True
+			self.classifier = torch.nn.DataParallel(self.classifier).to(self.device)
+			if torch.cuda.device_count() > 1:
+				print("Let's use", torch.cuda.device_count(), "GPUs!")
 		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
-		self.classifier = torch.nn.DataParallel(self.classifier)
 		while True:
 			train_loss, train_acc = self._train_epoch(train_loader)
 			test_loss, test_acc = self.evaluate_model(validation_loader)
@@ -72,19 +73,15 @@ class OneShotAug():
 		top1 = AverageMeter()
 		top5 = AverageMeter()
 		end = time.time()
-		
+		# if Config.tran.show_progrees_bar:
 		bar = Bar('Processing', max=len(train_loader.dataset))
-		# for _ in range(meta_batch_size):
-		# 	mini_dataset = _sample_mini_dataset(dataset, num_classes, num_shots)
-		# 	mini_batches = inner_mini_batches(mini_dataset, inner_batch_size, inner_iters, replacement)
 		for batch_idx, (inputs, targets) in enumerate(train_loader):
 			self.step_count = self.prev_step_count + batch_idx + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
 			if self.use_cuda:
-				inputs, targets = inputs.cuda(), targets.cuda()
-			inputs, targets = torch.autograd.Variable(inputs), torch.autograd.Variable(targets)
+				inputs, targets = Variable(inputs.cuda()), Variable(targets.cuda())
 			
 			# compute output
 			outputs = self.classifier(inputs)
@@ -114,10 +111,12 @@ class OneShotAug():
 			end = time.time()
 			
 			# plot progress
+			# if Config.tran.show_progrees_bar:
 			bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
 				batch=batch_idx + 1, size=len(train_loader), data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
 				top5=top5.avg)
 			bar.next()
+		# if Config.tran.show_progrees_bar:
 		bar.finish()
 		# Save model parameters
 		if self.step_count % Config.train.save_checkpoints_steps == 0:
