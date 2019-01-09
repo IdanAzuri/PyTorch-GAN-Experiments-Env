@@ -1,5 +1,4 @@
 import os
-import random
 import sys
 import time
 from copy import deepcopy
@@ -13,6 +12,7 @@ from torch.backends import cudnn
 from torch.optim import lr_scheduler
 
 from logger import Logger
+from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
 from utils import saving_config
@@ -30,7 +30,13 @@ class OneShotAug():
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
-		self.classifier = MiniImageNetModel()
+		if Config.model.pretrained:
+			self.classifier = PretrainedClassifier()
+			self.title = self.classifier.title
+			self.classifier = self.classifier.model
+		else:
+			self.classifier = MiniImageNetModel()
+			self.title = self.classifier.title
 		self.learning_rate = Config.train.learning_rate
 		self.c_path = f"{Config.train.model_dir}/log"
 		self.model_path = f"{Config.train.model_dir}/model"
@@ -45,7 +51,7 @@ class OneShotAug():
 		
 		if resume:
 			self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
-		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.classifier.title)
+		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.title)
 		self.logger.set_names(['Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
 		return self._train
 	
@@ -65,23 +71,35 @@ class OneShotAug():
 			if torch.cuda.device_count() > 1:
 				print("Let's use", torch.cuda.device_count(), "GPUs!")
 		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
+		best_loss = 10e10
+		best_model_wts = deepcopy(self.classifier.state_dict())
 		while True:
 			self.meta_step_count = self.prev_meta_step_count + 1  # init value
-			for _ in range(self.meta_batch_size):
-					mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
-					mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-					train_loss, train_acc = self._train_epoch(mini_train_batches)
-					mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
-					mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-					test_loss, test_acc = self.evaluate_model(mini_valid_batches)
-					# append logger file
-					self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
+			for epoch in range(self.meta_batch_size):
+				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+				mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+				train_loss, train_acc = self._train_epoch(mini_train_batches)
+				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
+				mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+				test_loss, test_acc = self.evaluate_model(mini_valid_batches)
+				# append logger file
+				self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
+				epoch_loss = test_loss
+				# deep copy the model
+				if epoch_loss < best_loss:
+					best_loss = epoch_loss
+					best_model_wts = deepcopy(self.classifier.state_dict())
+				if epoch % 30 == 0:
+					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
+			print('save!')
 			self.prev_meta_step_count = self.meta_step_count
 			# update learning rate
 			exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=5000, gamma=0.1)
 			exp_lr_scheduler.step()
 			if self.meta_step_count >= Config.train.meta_iters:
+				self.predict()
 				sys.exit()
+	
 	def _train_epoch(self, train_loader):
 		self.classifier.train()
 		batch_time = AverageMeter()
@@ -98,12 +116,12 @@ class OneShotAug():
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
+			inputs = Variable(torch.stack(inputs))
+			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
-				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(self.inner_batch_size, Config.data.channels, Config.data.image_size, Config.data.image_size))).cuda()
-				labels = Variable(torch.from_numpy(np.array(labels))).cuda()
-			else:
-				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(self.inner_batch_size, Config.data.channels, Config.data.image_size, Config.data.image_size)))
-				labels = Variable(torch.from_numpy(np.array(labels)))
+				inputs = inputs.cuda()
+				labels = labels.cuda()
+			
 			# compute output
 			outputs = self.classifier(inputs)
 			loss = self.loss_criterion(outputs, labels)
@@ -126,6 +144,8 @@ class OneShotAug():
 			# Step Verbose & Tensorboard Summary
 			if self.meta_step_count + batch_idx % Config.train.verbose_step_count == 0:
 				self._add_summary(self.meta_step_count, {"loss_train": losses.avg})
+				self._add_summary(step_count, {"top1_acc_train": top1.avg})
+				self._add_summary(step_count, {"top5_acc_train": top5.avg})
 			
 			# measure elapsed time
 			batch_time.update(time.time() - end)
@@ -133,8 +153,8 @@ class OneShotAug():
 			
 			# plot progress
 			if Config.train.show_progrees_bar:
-				bar.suffix = '({batch}/{size}) Data: {data:} | Batch: {bt:} | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
-					batch=batch_idx + 1, size=self.num_classes*self.num_shots, data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
+				bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+					batch=batch_idx + 1, size=len(train_loader), data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
 					top5=top5.avg)
 				bar.next()
 		if Config.train.show_progrees_bar:
@@ -181,19 +201,53 @@ class OneShotAug():
 			# Step Verbose & Tensorboard Summary
 			if step_count % Config.train.verbose_step_count == 0:
 				self._add_summary(step_count, {"loss_valid": losses.avg})
-			
+				self._add_summary(step_count, {"top1_acc_valid": top1.avg})
+				self._add_summary(step_count, {"top5_acc_valid": top5.avg})
+		
 		return losses.avg, top1.avg
 	
 	def predict(self):
-		pass
+		print("Predicting on test set...")
+		losses = AverageMeter()
+		top1 = AverageMeter()
+		top5 = AverageMeter()
+		# Load model
+		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
+		test_loader = read_dataset_test(Config.data.miniimagenet_path)
+		mini_test_dataset = _sample_mini_dataset(test_loader, self.num_classes, self.num_shots)
+		mini_test_batches = _mini_batches(mini_test_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+		self.classifier.eval()
+		for batch_idx, batch in enumerate(mini_test_batches):
+			(inputs, labels) = zip(*batch)
+			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
+			
+			if self.use_cuda:
+				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size))).cuda()
+				labels = Variable(torch.from_numpy(np.array(labels))).cuda()
+			else:
+				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size)))
+				labels = Variable(torch.from_numpy(np.array(labels)))
+			
+			# compute output
+			outputs = self.classifier(inputs)
+			loss = self.loss_criterion(outputs, labels)
+			
+			# measure accuracy and record loss
+			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
+			losses.update(loss.data.item(), inputs.size(0))
+			top1.update(prec1.item(), inputs.size(0))
+			top5.update(prec5.item(), inputs.size(0))
+			
+			# Step Verbose & Tensorboard Summary
+			if step_count % Config.train.verbose_step_count == 0:
+				self._add_summary(step_count, {"loss_test": losses.avg})
+				self._add_summary(step_count, {"top1_acc_test": top1.avg})
+				self._add_summary(step_count, {"top5_acc_test": top5.avg})
+		
+		return losses.avg, top1.avg
 	
 	def build_criterion(self):
 		return torch.nn.CrossEntropyLoss().to(self.device)
-	
-	def save_model_params(self, model):
-		self.weights_before = deepcopy(model.state_dict())
-		# torch.save(model.state_dict(), path)
-		return self.weights_before
 	
 	def build_optimizers(self, classifier):
 		
@@ -204,69 +258,3 @@ class OneShotAug():
 	def _add_summary(self, step, summary):
 		for tag, value in summary.items():
 			self.tensorboard.scalar_summary(tag, value, step)
-
-
-def _sample_mini_dataset(dataset, num_classes, num_shots):
-	"""
-	Sample a few shot task from a dataset.
-	Returns:
-	  An iterable of (input, label) pairs.
-	"""
-	shuffled = list(dataset)
-	random.shuffle(shuffled)
-	for class_idx, class_obj in enumerate(shuffled[:num_classes]):
-		for sample in class_obj.sample(num_shots):
-			yield (sample, class_idx)
-
-
-def _mini_batches(samples, batch_size, num_batches, replacement):
-	"""
-	Generate mini-batches from some data.
-	Returns:
-	  An iterable of sequences of (input, label) pairs,
-		where each sequence is a mini-batch.
-	"""
-	samples = list(samples)
-	if replacement:
-		for _ in range(num_batches):
-			yield random.sample(samples, batch_size)
-		return
-	cur_batch = []
-	batch_count = 0
-	while True:
-		random.shuffle(samples)
-		for sample in samples:
-			cur_batch.append(sample)
-			if len(cur_batch) < batch_size:
-				continue
-			yield cur_batch
-			cur_batch = []
-			batch_count += 1
-			if batch_count == num_batches:
-				return
-
-
-def _split_train_test(samples, test_shots=1):
-	"""
-	Split a few-shot task into a train and a test set.
-	Args:
-	  samples: an iterable of (input, label) pairs.
-	  test_shots: the number of examples per class in the
-		test set.
-	Returns:
-	  A tuple (train, test), where train and test are
-		sequences of (input, label) pairs.
-	"""
-	train_set = list(samples)
-	test_set = []
-	labels = set(item[1] for item in train_set)
-	for _ in range(test_shots):
-		for label in labels:
-			for i, item in enumerate(train_set):
-				if item[1] == label:
-					del train_set[i]
-					test_set.append(item)
-					break
-	if len(test_set) < len(labels) * test_shots:
-		raise IndexError('not enough examples of each class for test set')
-	return train_set, test_set

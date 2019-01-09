@@ -9,11 +9,12 @@ sub-directory per WordNet ID.
 import os
 import random
 
-import numpy as np
 from PIL import Image
+from hbconfig import Config
+from torchvision.transforms import transforms
 
 
-def read_dataset_test(data_dir):
+def read_dataset_test(data_dir, transforms=None):
 	"""
 	Read the Mini-ImageNet dataset.
 	Args:
@@ -22,8 +23,10 @@ def read_dataset_test(data_dir):
 	  A tuple (train, val, test) of sequences of
 		ImageNetClass instances.
 	"""
-	return tuple(_read_classes(os.path.join(data_dir, x)) for x in ['test'])
-def read_dataset(data_dir):
+	return tuple(_read_classes(os.path.join(data_dir, x), transforms) for x in ['test'])
+
+
+def read_dataset(data_dir, transforms=None):
 	"""
 	Read the Mini-ImageNet dataset.
 	Args:
@@ -32,24 +35,33 @@ def read_dataset(data_dir):
 	  A tuple (train, val, test) of sequences of
 		ImageNetClass instances.
 	"""
-	return tuple(_read_classes(os.path.join(data_dir, x)) for x in ['train', 'val'])#, 'test'
+	return tuple(_read_classes(os.path.join(data_dir, x), transforms) for x in ['train', 'val'])  # , 'test'
 
-def _read_classes(dir_path):
+
+def _read_classes(dir_path, transforms):
 	"""
 	Read the WNID directories in a directory.
 	"""
-	return [ImageNetClass(os.path.join(dir_path, f)) for f in os.listdir(dir_path) if f.startswith('n')]
+	return [ImageNetClass(os.path.join(dir_path, f), transforms) for f in os.listdir(dir_path) if f.startswith('n')]
 
 
 # pylint: disable=R0903
-class ImageNetClass:    
+class ImageNetClass:
 	"""
 	A single image class.
 	"""
 	
-	def __init__(self, dir_path):
+	def __init__(self, dir_path, transform):
 		self.dir_path = dir_path
 		self._cache = {}
+		if transform is None:
+			self.transform = transforms.Compose(
+				[transforms.RandomResizedCrop(Config.data.image_size),
+				 transforms.RandomHorizontalFlip(),
+				 transforms.ToTensor(),
+				 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]), ])
+		else:
+			self.transform = transform
 	
 	def sample(self, num_images):
 		"""
@@ -67,12 +79,13 @@ class ImageNetClass:
 	
 	def _read_image(self, name):
 		if name in self._cache:
-			return self._cache[name].astype('float32') / 0xff
+			tmp = self._cache[name]  # .astype('float32') / 0xff
+			
+			return tmp
 		with open(os.path.join(self.dir_path, name), 'rb') as in_file:
 			img = Image.open(in_file).resize((84, 84)).convert('RGB')
-			self._cache[name] = np.array(img)
+			self._cache[name] = self.transform(img)
 			return self._read_image(name)
-
 
 
 def inner_mini_batches(self, mini_dataset, inner_batch_size, inner_iters, replacement):

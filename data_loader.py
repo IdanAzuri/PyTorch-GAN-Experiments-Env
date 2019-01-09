@@ -20,10 +20,15 @@ def get_loader(mode):
 	is_train = mode == "train"
 	
 	if config.model.use_augmentation:
-		transform_list.extend([torchvision.transforms.ColorJitter(hue=.05, saturation=.05), transforms.RandomResizedCrop(config.data.image_size),
-		                       transforms.RandomHorizontalFlip(p=0.2), torchvision.transforms.RandomHorizontalFlip(), torchvision.transforms.RandomAffine(45),
+		transform_list.extend([torchvision.transforms.ColorJitter(hue=.05, saturation=.05),
+		                       transforms.RandomResizedCrop(config.data.image_size),
+		                       transforms.RandomHorizontalFlip(p=0.2),
+		                       torchvision.transforms.RandomHorizontalFlip(),
+		                       torchvision.transforms.RandomAffine(45),
 		                       torchvision.transforms.RandomRotation(20)])
-	transform_list.extend([transforms.Resize(config.data.image_size), transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+	transform_list.extend([transforms.Resize(config.data.image_size),
+	                       transforms.ToTensor(),
+	                       transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
 	
 	transform = transforms.Compose(transform_list)
 	
@@ -48,7 +53,7 @@ def get_loader(mode):
 		train_loader = DataLoader(dataset=train_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	if config.model.dataset == "miniimagenet":
-		train_loader, valid_loader = read_dataset(Config.data.miniimagenet_path)
+		train_loader, valid_loader = read_dataset(Config.data.miniimagenet_path,transform)
 		# transform(train_loader)
 	if config.model.dataset == "miniimagenet_all":
 		train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform)
