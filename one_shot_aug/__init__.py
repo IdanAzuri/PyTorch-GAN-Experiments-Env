@@ -181,12 +181,11 @@ class OneShotAug():
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
+			inputs = Variable(torch.stack(inputs))
+			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
-				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size))).cuda()
-				labels = Variable(torch.from_numpy(np.array(labels))).cuda()
-			else:
-				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size)))
-				labels = Variable(torch.from_numpy(np.array(labels)))
+				inputs = inputs.cuda()
+				labels = labels.cuda()
 			
 			# compute output
 			outputs = self.classifier(inputs)
@@ -221,12 +220,11 @@ class OneShotAug():
 			(inputs, labels) = zip(*batch)
 			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
 			
+			inputs = Variable(torch.stack(inputs))
+			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
-				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size))).cuda()
-				labels = Variable(torch.from_numpy(np.array(labels))).cuda()
-			else:
-				inputs = Variable(torch.from_numpy(np.asarray(inputs).reshape(Config.model.n_classes, Config.data.channels, Config.data.image_size, Config.data.image_size)))
-				labels = Variable(torch.from_numpy(np.array(labels)))
+				inputs = inputs.cuda()
+				labels = labels.cuda()
 			
 			# compute output
 			outputs = self.classifier(inputs)
