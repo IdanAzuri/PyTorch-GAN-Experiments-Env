@@ -70,6 +70,7 @@ class PretrainedClassifier(nn.Module):
 				model = models.__dict__[arch](pretrained=Config.model.pretrained)
 				num_ftrs = model.fc.in_features
 				model.fc = nn.Linear(num_ftrs, Config.model.n_classes)
+				self.model = model
 		
 		self.title = Config.model.dataset + '-' + arch
 	
