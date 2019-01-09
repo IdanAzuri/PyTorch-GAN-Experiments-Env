@@ -19,17 +19,17 @@ from utils import saving_config
 from . import utils
 
 
-outerstepsize0 = 0.1  # stepsize of outer optimization, i.e., meta-optimization
-
-
 class OneShotAug():
 	model_name = "OneShotAug"
-	os.makedirs('images', exist_ok=True)
+	
+	# os.makedirs('images', exist_ok=True)
 	
 	def __init__(self):
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
+		# load model
+		# self.classifier.model.load_state_dict(torch.load(os.path.join(self.model_path + str(Config.model.name) + '.t7')))
 		if Config.model.pretrained:
 			self.classifier = PretrainedClassifier()
 			self.title = self.classifier.title
@@ -66,30 +66,34 @@ class OneShotAug():
 		# switch to train mode
 		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 		if self.use_cuda:
-			cudnn.benchmark = True
 			self.classifier = torch.nn.DataParallel(self.classifier).to(self.device)
 			if torch.cuda.device_count() > 1:
-				print("Let's use", torch.cuda.device_count(), "GPUs!")
-		print('    Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
+				print("Using ", torch.cuda.device_count(), " GPUs!")
+			cudnn.benchmark = True
+		print('Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
 		best_loss = 10e10
 		best_model_wts = deepcopy(self.classifier.state_dict())
 		while True:
 			self.meta_step_count = self.prev_meta_step_count + 1  # init value
-			for epoch in range(self.meta_batch_size):
+			for meta_epoch in range(self.meta_batch_size):
+				#training
 				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
 				mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
 				train_loss, train_acc = self._train_epoch(mini_train_batches)
+				#validation
 				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
 				mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-				test_loss, test_acc = self.evaluate_model(mini_valid_batches)
-				# append logger file
-				self.logger.append([self.learning_rate, train_loss, test_loss, train_acc, test_acc])
-				epoch_loss = test_loss
+				validation_loss, validation_acc = self.evaluate_model(mini_valid_batches)
+				
+				self.logger.append([self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
+				epoch_loss = validation_loss
 				# deep copy the model
 				if epoch_loss < best_loss:
+					print(f"Update best weights prev_loss{best_loss} new_best_loss{epoch_loss}")
 					best_loss = epoch_loss
 					best_model_wts = deepcopy(self.classifier.state_dict())
-				if epoch % 30 == 0:
+				
+				if meta_epoch % 30 == 0:
 					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
 			print('save!')
 			self.prev_meta_step_count = self.meta_step_count
@@ -132,15 +136,11 @@ class OneShotAug():
 			top1.update(prec1.item(), inputs.size(0))
 			top5.update(prec5.item(), inputs.size(0))
 			
-			# weights_before = deepcopy(self.classifier.model.state_dict())
 			# compute gradient and do SGD step
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
 			
-			# weights_after = self.classifier.model.state_dict()
-			# outerstepsize = outerstepsize0 * (1 - batch_idx / len(train_loader.dataset))  # linear schedule
-			# self.classifier.model.load_state_dict({name: weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize for name in weights_before})
 			# Step Verbose & Tensorboard Summary
 			if self.meta_step_count + batch_idx % Config.train.verbose_step_count == 0:
 				self._add_summary(self.meta_step_count, {"loss_train": losses.avg})
