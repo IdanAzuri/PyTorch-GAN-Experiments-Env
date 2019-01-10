@@ -76,13 +76,13 @@ class OneShotAug():
 		best_model_wts = deepcopy(self.classifier.state_dict())
 		self.meta_step_count = self.prev_meta_step_count + 1  # init value
 		for meta_epoch in range(self.meta_batch_size):
-			dynamic_train_batch_size = 600
+			dynamic_train_batch_size = self.train_batch_size
 			while True:
 				#training
 				if meta_epoch % 10000:
 					dynamic_train_batch_size= max(dynamic_train_batch_size//2, self.inner_batch_size)
 				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, 600)
-				mini_train_batches = _mini_batches(mini_train_dataset, self.train_batch_size, self.inner_iters, self.replacement)
+				mini_train_batches = _mini_batches(mini_train_dataset, dynamic_train_batch_size, self.inner_iters, self.replacement)
 				train_loss, train_acc = self._train_epoch(mini_train_batches)
 				#validation
 				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
