@@ -11,7 +11,7 @@ data:
 model:
     name: "OneShotAug"
     type: "known_net"
-    pretrained: True
+    pretrained: False
     seed: 222
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
@@ -28,7 +28,7 @@ model:
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
 train:
-    model_dir: "outputs/pretrainedresnet_50_aug"
+    model_dir: "outputs/resnet_50_aug"
     batch_size: 64
     shuffle: true
     

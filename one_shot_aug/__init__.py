@@ -63,7 +63,6 @@ class OneShotAug():
 		self.inner_iters = Config.train.inner_iters
 		self.replacement = Config.train.replacement
 		self.meta_batch_size = Config.train.meta_batch_size
-		self.train_batch_size = Config.train.batch_size
 		# switch to train mode
 		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 		if self.use_cuda:
@@ -74,15 +73,12 @@ class OneShotAug():
 		print('Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
 		best_loss = 10e10
 		best_model_wts = deepcopy(self.classifier.state_dict())
-		self.meta_step_count = self.prev_meta_step_count + 1  # init value
 		for meta_epoch in range(self.meta_batch_size):
-			dynamic_train_batch_size = self.train_batch_size
 			while True:
+				self.meta_step_count = self.prev_meta_step_count + 1  # init value
 				#training
-				if meta_epoch % 10000:
-					dynamic_train_batch_size= max(dynamic_train_batch_size//2, self.inner_batch_size)
-				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, 600)
-				mini_train_batches = _mini_batches(mini_train_dataset, dynamic_train_batch_size, self.inner_iters, self.replacement)
+				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+				mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
 				train_loss, train_acc = self._train_epoch(mini_train_batches)
 				#validation
 				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
@@ -99,7 +95,7 @@ class OneShotAug():
 				
 				if self.meta_step_count % 1000 == 0:
 					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
-				print('save!')
+					print('save!')
 				self.prev_meta_step_count = self.meta_step_count
 				# update learning rate
 				exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=5000, gamma=0.1)
@@ -158,7 +154,7 @@ class OneShotAug():
 			# plot progress
 			if Config.train.show_progrees_bar:
 				bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
-					batch=batch_idx + 1, size=len(train_loader), data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
+					batch=batch_idx + 1, size=inputs.size(0), data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
 					top5=top5.avg)
 				bar.next()
 		if Config.train.show_progrees_bar:
@@ -244,6 +240,7 @@ class OneShotAug():
 				self._add_summary(step_count, {"loss_test": losses.avg})
 				self._add_summary(step_count, {"top1_acc_test": top1.avg})
 				self._add_summary(step_count, {"top5_acc_test": top5.avg})
+				print(f"step{step_count}| valid_loss{losses.avg}| acc{top1.avg}")
 		
 		return losses.avg, top1.avg
 	
