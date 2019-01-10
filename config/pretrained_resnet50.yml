@@ -19,7 +19,7 @@ model:
 #    depth: 29
     use_dropout: True
     dropout: 0.3
-    use_augmentation: True
+    use_augmentation: False
     dataset: miniimagenet
 #    total_train_classes: 65 #miniimagenet
 #    total_valid_classes: 20 #miniimagenet
@@ -27,7 +27,7 @@ model:
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
 train:
-    model_dir: "outputs/pretrainedresnet_50_aug"
+    model_dir: "outputs/pretrainedresnet_50"
     batch_size: 64
     shuffle: true
     
