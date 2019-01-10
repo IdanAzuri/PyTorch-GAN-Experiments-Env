@@ -10,10 +10,10 @@ data:
 
 model:
     name: "OneShotAug"
-    type: "known_net"
+    type: "conv"
     pretrained: False
     seed: 222
-    arch: vgg19_bn #resnet,densenet
+    arch: small_cnnn #resnet,densenet
     base_width: 4 #resnet params
     cardinality: 32 # resnet params
     depth: 29
@@ -35,7 +35,7 @@ model:
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
 train:
-    model_dir: "outputs/pretrained_vgg19_bn_no_augment"
+    model_dir: "outputs/4conv"
     batch_size: 64
     shuffle: true
     

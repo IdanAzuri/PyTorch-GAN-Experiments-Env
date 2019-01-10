@@ -30,7 +30,7 @@ class OneShotAug():
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
 		# load model
 		# self.classifier.model.load_state_dict(torch.load(os.path.join(self.model_path + str(Config.model.name) + '.t7')))
-		if Config.model.pretrained:
+		if Config.model.type=="known_net":
 			self.classifier = PretrainedClassifier()
 			self.title = self.classifier.title
 			self.classifier = self.classifier.model

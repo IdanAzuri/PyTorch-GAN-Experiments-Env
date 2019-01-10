@@ -45,32 +45,31 @@ class PretrainedClassifier(nn.Module):
 		arch = Config.model.arch
 		self.arch = arch
 		print("=> creating model '{}'".format(arch))
-		if Config.model.pretrained:
-			print("=> using pre-trained model '{}'".format(arch))
-			# model = models.__dict__[arch](pretrained=True)
-			if arch.startswith('densenet') or arch.startswith('inception'):
-				model_conv = models.__dict__[arch](pretrained=Config.model.pretrained)
-				num_ftrs = model_conv.classifier.in_features
-				model_conv.classifier = nn.Linear(num_ftrs, Config.model.n_classes)
-				self.model = model_conv
-			elif arch.startswith('vgg'):
-				model_conv = models.__dict__[arch](pretrained='imagenet')
-				# Number of filters in the bottleneck layer
-				num_ftrs = model_conv.classifier[6].in_features
-				# convert all the layers to list and remove the last one
-				features = list(model_conv.classifier.children())[:-1]
-				## Add the last layer based on the num of classes in our dataset
-				features.extend([nn.Linear(num_ftrs, Config.model.n_classes)])
-				## convert it into container and add it to our model class.
-				model_conv.classifier = nn.Sequential(*features)
-				model_conv.num_classes = Config.model.n_classes
-				
-				self.model = model_conv
-			elif arch.startswith('resne'):
-				model = models.__dict__[arch](pretrained=Config.model.pretrained)
-				num_ftrs = model.fc.in_features
-				model.fc = nn.Linear(num_ftrs, Config.model.n_classes)
-				self.model = model
+		print("=> using pre-trained model '{}'".format(arch))
+		# model = models.__dict__[arch](pretrained=True)
+		if arch.startswith('densenet') or arch.startswith('inception'):
+			model_conv = models.__dict__[arch](pretrained=Config.model.pretrained)
+			num_ftrs = model_conv.classifier.in_features
+			model_conv.classifier = nn.Linear(num_ftrs, Config.model.n_classes)
+			self.model = model_conv
+		elif arch.startswith('vgg'):
+			model_conv = models.__dict__[arch](pretrained=Config.model.pretrained)
+			# Number of filters in the bottleneck layer
+			num_ftrs = model_conv.classifier[6].in_features
+			# convert all the layers to list and remove the last one
+			features = list(model_conv.classifier.children())[:-1]
+			## Add the last layer based on the num of classes in our dataset
+			features.extend([nn.Linear(num_ftrs, Config.model.n_classes)])
+			## convert it into container and add it to our model class.
+			model_conv.classifier = nn.Sequential(*features)
+			model_conv.num_classes = Config.model.n_classes
+			
+			self.model = model_conv
+		elif arch.startswith('resne'):
+			model = models.__dict__[arch](pretrained=Config.model.pretrained)
+			num_ftrs = model.fc.in_features
+			model.fc = nn.Linear(num_ftrs, Config.model.n_classes)
+			self.model = model
 		
 		self.title = Config.model.dataset + '-' + arch
 	
