@@ -10,7 +10,7 @@ data:
 
 model:
     name: "OneShotAug"
-    pretrained: True
+    pretrained: False
     seed: 222
     arch: vgg19_bn #resnet,densenet
     base_width: 4 #resnet params
@@ -49,7 +49,7 @@ train:
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
     inner_iters: 20 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
-    meta_batch_size: 2 # how many inner-loops to run
+    meta_batch_size: 1 # how many inner-loops to run
     meta_iters: 400000 # epochs
 predict:
     batch_size: 64

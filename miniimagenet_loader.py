@@ -62,7 +62,8 @@ class ImageNetClass:
 				 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]), ])
 		else:
 			self.transform = transform
-	
+	def __len__(self):
+			return len([f for f in os.listdir(self.dir_path) if f.endswith('.JPEG')])
 	def sample(self, num_images):
 		"""
 		Sample images (as numpy arrays) from the class.
@@ -111,6 +112,7 @@ def _sample_mini_dataset(dataset, num_classes, num_shots):
 	shuffled = list(dataset)
 	random.shuffle(shuffled)
 	for class_idx, class_obj in enumerate(shuffled[:num_classes]):
+		# num_shots = min(num_shots,len(class_obj))
 		for sample in class_obj.sample(num_shots):
 			yield (sample, class_idx)
 
