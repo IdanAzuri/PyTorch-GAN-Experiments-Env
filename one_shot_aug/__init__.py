@@ -52,7 +52,7 @@ class OneShotAug():
 		if resume:
 			self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
 		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.title)
-		self.logger.set_names(['Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
+		self.logger.set_names(['step','Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
 		return self._train
 	
 	def _train(self, data_loader):
@@ -89,11 +89,11 @@ class OneShotAug():
 				mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
 				validation_loss, validation_acc = self.evaluate_model(mini_valid_batches)
 				
-				self.logger.append([self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
+				self.logger.append([self.meta_step_count,self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
 				epoch_loss = validation_loss
 				# deep copy the model
 				if epoch_loss < best_loss:
-					print(f"Update best weights prev_loss{best_loss} new_best_loss{epoch_loss}")
+					print(f"step {self.meta_step_count}: update best weights prev_loss{best_loss} new_best_loss{epoch_loss}")
 					best_loss = epoch_loss
 					best_model_wts = deepcopy(self.classifier.state_dict())
 				
