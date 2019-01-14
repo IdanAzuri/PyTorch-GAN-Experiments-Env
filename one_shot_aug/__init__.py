@@ -219,6 +219,7 @@ class OneShotAug():
 		mini_test_dataset = _sample_mini_dataset(test_loader, self.num_classes, self.num_shots)
 		mini_test_batches = _mini_batches(mini_test_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
 		self.classifier.eval()
+		self.classifier.cuda()
 		for batch_idx, batch in enumerate(mini_test_batches):
 			(inputs, labels) = zip(*batch)
 			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
@@ -238,7 +239,7 @@ class OneShotAug():
 			losses.update(loss.data.item(), inputs.size(0))
 			top1.update(prec1.item(), inputs.size(0))
 			top5.update(prec5.item(), inputs.size(0))
-			print(prec1.avg)
+			print(top1.avg)
 			# Step Verbose & Tensorboard Summary
 			if step_count % Config.train.verbose_step_count == 0:
 				self._add_summary(step_count, {"loss_test": losses.avg})
