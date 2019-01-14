@@ -58,6 +58,7 @@ class OneShotAug():
 		
 		if resume:
 			self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
+			print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.title)
 		self.logger.set_names(['step', 'Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
 		return self._train
