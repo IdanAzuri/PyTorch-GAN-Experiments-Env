@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 from copy import deepcopy
 
@@ -28,9 +27,16 @@ class OneShotAug():
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
+		self.classifier_optimizer = None
+		self.num_classes = Config.model.n_classes
+		self.num_shots = Config.model.num_smaples_in_shot
+		self.inner_batch_size = Config.train.inner_batch_size
+		self.inner_iters = Config.train.inner_iters
+		self.replacement = Config.train.replacement
+		self.meta_batch_size = Config.train.meta_batch_size
 		# load model
 		# self.classifier.model.load_state_dict(torch.load(os.path.join(self.model_path + str(Config.model.name) + '.t7')))
-		if Config.model.type=="known_net":
+		if Config.model.type == "known_net":
 			self.classifier = PretrainedClassifier()
 			self.title = self.classifier.title
 			self.classifier = self.classifier.model
@@ -48,21 +54,16 @@ class OneShotAug():
 	def train_fn(self, criterion, optimizer, resume=True):
 		self.loss_criterion = criterion
 		self.classifier_optimizer = optimizer
+		self.exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=5000, gamma=0.1)
 		
 		if resume:
 			self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
 		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.title)
-		self.logger.set_names(['step','Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
+		self.logger.set_names(['step', 'Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
 		return self._train
 	
 	def _train(self, data_loader):
 		train_loader, validation_loader = data_loader
-		self.num_classes = Config.model.n_classes
-		self.num_shots = Config.model.num_smaples_in_shot
-		self.inner_batch_size = Config.train.inner_batch_size
-		self.inner_iters = Config.train.inner_iters
-		self.replacement = Config.train.replacement
-		self.meta_batch_size = Config.train.meta_batch_size
 		# switch to train mode
 		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 		if self.use_cuda:
@@ -76,16 +77,16 @@ class OneShotAug():
 		for meta_epoch in range(self.meta_batch_size):
 			while True:
 				self.meta_step_count = self.prev_meta_step_count + 1  # init value
-				#training
+				# training
 				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
 				mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
 				train_loss, train_acc = self._train_epoch(mini_train_batches)
-				#validation
+				# validation
 				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
 				mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
 				validation_loss, validation_acc = self.evaluate_model(mini_valid_batches)
 				
-				self.logger.append([self.meta_step_count,self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
+				self.logger.append([self.meta_step_count, self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
 				epoch_loss = validation_loss
 				# deep copy the model
 				if epoch_loss < best_loss:
@@ -98,10 +99,10 @@ class OneShotAug():
 					print('save!')
 				self.prev_meta_step_count = self.meta_step_count
 				# update learning rate
-				exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=5000, gamma=0.1)
-				exp_lr_scheduler.step()
+				
+				self.exp_lr_scheduler.step()
 				if self.meta_step_count >= Config.train.meta_iters:
-					self.predict()
+					self.predict(self.loss_criterion)
 					break
 	
 	def _train_epoch(self, train_loader):
@@ -143,7 +144,7 @@ class OneShotAug():
 			
 			# Step Verbose & Tensorboard Summary
 			if self.meta_step_count + batch_idx % Config.train.verbose_step_count == 0:
-				self._add_summary(self.meta_step_count, {"loss_train": losses.avg})
+				self._add_summary(step_count, {"loss_train": losses.avg})
 				self._add_summary(step_count, {"top1_acc_train": top1.avg})
 				self._add_summary(step_count, {"top5_acc_train": top5.avg})
 			
@@ -189,7 +190,7 @@ class OneShotAug():
 			# compute output
 			outputs = self.classifier(inputs)
 			loss = self.loss_criterion(outputs, labels)
-			
+			print(f"Valid loss: {loss}")
 			# measure accuracy and record loss
 			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 			losses.update(loss.data.item(), inputs.size(0))
@@ -204,14 +205,15 @@ class OneShotAug():
 		
 		return losses.avg, top1.avg
 	
-	def predict(self):
+	def predict(self,criterion):
 		print("Predicting on test set...")
+		self.loss_criterion = criterion
 		losses = AverageMeter()
 		top1 = AverageMeter()
 		top5 = AverageMeter()
 		# Load model
 		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
-		test_loader = read_dataset_test(Config.data.miniimagenet_path)
+		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
 		mini_test_dataset = _sample_mini_dataset(test_loader, self.num_classes, self.num_shots)
 		mini_test_batches = _mini_batches(mini_test_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
 		self.classifier.eval()
@@ -228,7 +230,7 @@ class OneShotAug():
 			# compute output
 			outputs = self.classifier(inputs)
 			loss = self.loss_criterion(outputs, labels)
-			
+			print(f"Test loss {loss}")
 			# measure accuracy and record loss
 			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 			losses.update(loss.data.item(), inputs.size(0))

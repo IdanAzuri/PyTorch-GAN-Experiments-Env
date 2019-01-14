@@ -21,15 +21,15 @@ class Model():
 			if current_model.model_name == Config.model.name:
 				model = current_model()
 				break
+		criterion = model.build_criterion()
 		if self.mode == self.TRAIN_MODE:
-			criterion = model.build_criterion()
 			optimizers = model.build_optimizers(model.classifier)
 			
 			return model.train_fn(criterion, optimizers)
 		elif self.mode == self.EVALUATE_MODE:
 			return model.evaluate_model()
 		elif self.mode == self.PREDICT_MODE:
-			return model.predict()
+			return model.predict(criterion)
 		else:
 			raise ValueError(f"unknown mode: {self.mode}")
 	

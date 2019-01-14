@@ -20,7 +20,7 @@ def main(mode):
 		train_and_valid_loaders = get_loader("train")
 		model_func(train_and_valid_loaders)
 	elif mode == Model.PREDICT_MODE:
-		model_func(Config.predict.batch_size)
+		model_func
 	else:
 		raise ValueError(f"unknown mode: {Model.mode}")
 
