@@ -214,6 +214,7 @@ class OneShotAug():
 		top5 = AverageMeter()
 		# Load model
 		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
+		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
 		mini_test_dataset = _sample_mini_dataset(test_loader, self.num_classes, self.num_shots)
 		mini_test_batches = _mini_batches(mini_test_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
