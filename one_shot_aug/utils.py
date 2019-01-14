@@ -10,7 +10,7 @@ import torch
 
 
 def load_saved_model(path, model, optimizer):
-    latest_path = find_latest(path)
+    latest_path = find_latest(path+"/")
     if latest_path is None:
         return 0, model, optimizer
 
