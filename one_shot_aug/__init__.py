@@ -216,37 +216,38 @@ class OneShotAug():
 		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
-		mini_test_dataset = _sample_mini_dataset(test_loader, self.num_classes, self.num_shots)
-		mini_test_batches = _mini_batches(mini_test_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-		self.classifier.eval()
-		self.classifier.cuda()
-		for batch_idx, batch in enumerate(mini_test_batches):
-			(inputs, labels) = zip(*batch)
-			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
+		for _ in range(5):
+			mini_test_dataset = _sample_mini_dataset(test_loader, self.num_classes, self.num_shots)
+			mini_test_batches = _mini_batches(mini_test_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
+			self.classifier.eval()
+			self.classifier.cuda()
+			for batch_idx, batch in enumerate(mini_test_batches):
+				(inputs, labels) = zip(*batch)
+				step_count = self.prev_meta_step_count + batch_idx + 1  # init value
+				
+				inputs = Variable(torch.stack(inputs))
+				labels = Variable(torch.from_numpy(np.array(labels)))
+				if self.use_cuda:
+					inputs = inputs.cuda()
+					labels = labels.cuda()
+				
+				# compute output
+				outputs = self.classifier(inputs)
+				loss = self.loss_criterion(outputs, labels)
+				print(f"Test loss {loss}")
+				# measure accuracy and record loss
+				prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
+				losses.update(loss.data.item(), inputs.size(0))
+				top1.update(prec1.item(), inputs.size(0))
+				top5.update(prec5.item(), inputs.size(0))
+				print(top1.avg)
+				# Step Verbose & Tensorboard Summary
+				if step_count % Config.train.verbose_step_count == 0:
+					self._add_summary(step_count, {"loss_test": losses.avg})
+					self._add_summary(step_count, {"top1_acc_test": top1.avg})
+					self._add_summary(step_count, {"top5_acc_test": top5.avg})
+					print(f"step{step_count}| valid_loss{losses.avg}| acc{top1.avg}")
 			
-			inputs = Variable(torch.stack(inputs))
-			labels = Variable(torch.from_numpy(np.array(labels)))
-			if self.use_cuda:
-				inputs = inputs.cuda()
-				labels = labels.cuda()
-			
-			# compute output
-			outputs = self.classifier(inputs)
-			loss = self.loss_criterion(outputs, labels)
-			print(f"Test loss {loss}")
-			# measure accuracy and record loss
-			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
-			losses.update(loss.data.item(), inputs.size(0))
-			top1.update(prec1.item(), inputs.size(0))
-			top5.update(prec5.item(), inputs.size(0))
-			print(top1.avg)
-			# Step Verbose & Tensorboard Summary
-			if step_count % Config.train.verbose_step_count == 0:
-				self._add_summary(step_count, {"loss_test": losses.avg})
-				self._add_summary(step_count, {"top1_acc_test": top1.avg})
-				self._add_summary(step_count, {"top5_acc_test": top5.avg})
-				print(f"step{step_count}| valid_loss{losses.avg}| acc{top1.avg}")
-		
 		return losses.avg, top1.avg
 	
 	def build_criterion(self):
