@@ -20,7 +20,7 @@ def load_saved_model(path, model, optimizer):
 	step_count = checkpoint['step_count']
 	state_dict = checkpoint['model']
 	# if dataparallel
-	if "module" in state_dict.iterkeys().next():
+	if "module" in state_dict.keys().next():
 		
 		new_state_dict = OrderedDict()
 		for k, v in state_dict.items():
