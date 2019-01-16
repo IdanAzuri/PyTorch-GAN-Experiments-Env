@@ -20,16 +20,18 @@ def load_saved_model(path, model, optimizer):
 	step_count = checkpoint['step_count']
 	state_dict = checkpoint['model']
 	# if dataparallel
-	new_state_dict = OrderedDict()
-	for k, v in state_dict.items():
-		name = k[7:]  # remove 'module.' of dataparallel
-		new_state_dict[name] = v
-	
-	model.load_state_dict(new_state_dict)
+	try:
+		new_state_dict = OrderedDict()
+		for k, v in state_dict.items():
+			name = k[7:]  # remove 'module.' of dataparallel
+			new_state_dict[name] = v
+		
+		model.load_state_dict(new_state_dict)
+	except:
 	# else:
-	# model.load_state_dict(checkpoint['model'])
-	if optimizer is not None:
-		optimizer.load_state_dict(checkpoint['optimizer'])
+		model.load_state_dict(checkpoint['model'])
+		if optimizer is not None:
+			optimizer.load_state_dict(checkpoint['optimizer'])
 	
 	print(f"Load checkpoints...! {latest_path}")
 	return step_count, model, optimizer
