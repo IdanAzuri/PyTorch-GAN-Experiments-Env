@@ -10,6 +10,7 @@ data:
 
 model:
     name: "OneShotAug"
+    type: "known_net"
     pretrained: True
     seed: 222
     arch: resnet50 #i.e. resnet,densenet
