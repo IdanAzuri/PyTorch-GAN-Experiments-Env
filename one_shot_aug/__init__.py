@@ -241,9 +241,9 @@ class OneShotAug():
 				top5.update(prec5.item(), inputs.size(0))
 				print(top1.avg)
 				print(f"Test loss {loss}")
-				print(f"Test loss avg {loss.avg}")
+				print(f"Test loss avg {losses.avg}")
 				print(f"Accuracy avg:{top1.avg}")
-				print(f"Accuracy:{top1}")
+				print(f"Accuracy:{prec1.item()}")
 				# Step Verbose & Tensorboard Summary
 				if step_count % Config.train.verbose_step_count == 0:
 					self._add_summary(step_count, {"loss_test": losses.avg})
