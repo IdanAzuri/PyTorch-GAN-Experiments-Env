@@ -191,10 +191,9 @@ class OneShotAug():
 			# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
 			# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
 			# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
-			# print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}")
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
-		print(f"num_correct: {num_correct}")
+		print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}, num_correct: {num_correct}")
 		self.classifier.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
 			return num_correct
