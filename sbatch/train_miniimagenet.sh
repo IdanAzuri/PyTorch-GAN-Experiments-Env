@@ -5,7 +5,7 @@
 #SBATCH --time=2-00
 #SBATCH --mail-user=idan.azuri@mail.huji.ac.il
 #SBATCH --mail-type=END,FAIL,TIME_LIMIT
-#SBATCH --array=0-4%4
+#SBATCH --array=0-3%4
 
 
 module load torch

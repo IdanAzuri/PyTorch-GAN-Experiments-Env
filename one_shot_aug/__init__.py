@@ -5,16 +5,16 @@ from copy import deepcopy
 import numpy as np
 import torch
 from hbconfig import Config
-from progress.bar import Bar
-from torch.autograd import Variable
-from torch.backends import cudnn
-from torch.optim import lr_scheduler
-
 from logger import Logger
 from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
+from progress.bar import Bar
+from torch.autograd import Variable
+from torch.backends import cudnn
+from torch.optim import lr_scheduler
 from utils import saving_config
+
 from . import utils
 
 
@@ -166,7 +166,7 @@ class OneShotAug():
 		
 		return losses.avg, top1.avg
 	
-	def evaluate_model(self, dataset,mode="valid"):
+	def evaluate_model(self, dataset, mode="valid"):
 		self.classifier.eval()
 		batch_time = AverageMeter()
 		data_time = AverageMeter()
@@ -175,8 +175,8 @@ class OneShotAug():
 		top5 = AverageMeter()
 		end = time.time()
 		
-		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1)) #1 more sample for train
-		old_model_state = deepcopy(self.classifier.state_dict()) # store weights to avoid training
+		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
+		old_model_state = deepcopy(self.classifier.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_batches):
 			(inputs, labels) = zip(*batch)
@@ -209,24 +209,27 @@ class OneShotAug():
 				self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
 				self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
 				print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}")
-		test_preds = self._test_predictions(train_set, test_set) # testing on only 1 sample mabye redundant
+		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
 		print(f"num_correct: {num_correct}")
-		self.classifier.load_state_dict(old_model_state) # load back model's weights
+		self.classifier.load_state_dict(old_model_state)  # load back model's weights
+		if mode == "total_test":
+			return num_correct
 		return losses.avg, top1.avg
 	
-	def predict(self,criterion):
+	def predict(self, criterion):
 		print("Predicting on test set...")
 		self.loss_criterion = criterion
-
+		
 		# Load model
 		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		if self.use_cuda:
 			self.classifier.cuda()
 		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
-		
-		return self.evaluate(test_loader)
+		evaluation = self.evaluate(test_loader)
+		print(f"Total score: {evaluation}")
+		return evaluation
 	
 	def build_criterion(self):
 		return torch.nn.CrossEntropyLoss().to(self.device)
@@ -250,21 +253,24 @@ class OneShotAug():
 		res = []
 		for test_sample in test_set:
 			inputs, _ = zip(*train_set)
-			inputs=Variable(torch.stack(inputs))
-			inputs+= Variable(torch.stack((test_sample[0],)))
 			if self.use_cuda:
-				inputs.cuda()
+				inputs = Variable(torch.stack(inputs)).cuda()
+				inputs += Variable(torch.stack((test_sample[0],))).cuda()
+			else:
+				inputs = Variable(torch.stack(inputs))
+				inputs += Variable(torch.stack((test_sample[0],)))
 			res.append(torch.argmax(self.classifier(inputs)))
 		return res
 	
-	def evaluate(self,
-	             dataset,
-	             num_classes=5,
-	             num_samples=1000):
+	def evaluate(self, dataset, num_classes=5, num_samples=2):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
 		total_correct = 0
 		for _ in range(num_samples):
-			total_correct += self.evaluate_model(dataset,mode="toatl_test")
-		return total_correct / (num_samples * num_classes)
+			total_correct += self.evaluate_model(dataset, mode="total_test")
+		
+		return total_correct.item() / (num_samples * num_classes)
+
+# TODO: finish evaluation correctly like reptile
+# maybe redundant 20 inner loop because it the same image
