@@ -144,6 +144,7 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 				return
 
 
+
 def _split_train_test(samples, test_shots=1):
 	"""
 	Split a few-shot task into a train and a test set.
@@ -168,3 +169,4 @@ def _split_train_test(samples, test_shots=1):
 	if len(test_set) < len(labels) * test_shots:
 		raise IndexError('not enough examples of each class for test set')
 	return train_set, test_set
+

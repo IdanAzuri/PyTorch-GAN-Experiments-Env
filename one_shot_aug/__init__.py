@@ -11,7 +11,7 @@ from torch.backends import cudnn
 from torch.optim import lr_scheduler
 
 from logger import Logger
-from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches
+from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
 from utils import saving_config
@@ -24,6 +24,7 @@ class OneShotAug():
 	# os.makedirs('images', exist_ok=True)
 	
 	def __init__(self):
+		self._transductive = False
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
@@ -79,13 +80,9 @@ class OneShotAug():
 			while True:
 				self.meta_step_count = self.prev_meta_step_count + 1  # init value
 				# training
-				mini_train_dataset = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
-				mini_train_batches = _mini_batches(mini_train_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-				train_loss, train_acc = self._train_epoch(mini_train_batches)
+				train_loss, train_acc = self._train_epoch(_sample_mini_dataset(train_loader, self.num_classes, self.num_shots))
 				# validation
-				mini_valid_dataset = _sample_mini_dataset(validation_loader, self.num_classes, self.num_shots)
-				mini_valid_batches = _mini_batches(mini_valid_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-				validation_loss, validation_acc = self.evaluate_model(mini_valid_batches)
+				validation_loss, validation_acc = self.evaluate_model(validation_loader)
 				
 				self.logger.append([self.meta_step_count, self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
 				epoch_loss = validation_loss
@@ -114,9 +111,11 @@ class OneShotAug():
 		top1 = AverageMeter()
 		top5 = AverageMeter()
 		end = time.time()
+		mini_train_loader = _mini_batches(train_loader, self.inner_batch_size, self.inner_iters, self.replacement)
+		
 		if Config.train.show_progrees_bar:
 			bar = Bar('Processing', max=self.num_classes * self.num_shots)
-		for batch_idx, batch in enumerate(train_loader):
+		for batch_idx, batch in enumerate(mini_train_loader):
 			(inputs, labels) = zip(*batch)
 			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
 			# measure data loading time
@@ -167,7 +166,7 @@ class OneShotAug():
 		
 		return losses.avg, top1.avg
 	
-	def evaluate_model(self, data_loader):
+	def evaluate_model(self, dataset,mode="valid"):
 		self.classifier.eval()
 		batch_time = AverageMeter()
 		data_time = AverageMeter()
@@ -176,7 +175,10 @@ class OneShotAug():
 		top5 = AverageMeter()
 		end = time.time()
 		
-		for batch_idx, batch in enumerate(data_loader):
+		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1)) #1 more sample for train
+		old_model_state = deepcopy(self.classifier.state_dict()) # store weights to avoid training
+		mini_batches = _mini_batches(train_set, self.inner_batch_size, self.inner_iters, self.replacement)
+		for batch_idx, batch in enumerate(mini_batches):
 			(inputs, labels) = zip(*batch)
 			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
 			# measure data loading time
@@ -191,19 +193,26 @@ class OneShotAug():
 			# compute output
 			outputs = self.classifier(inputs)
 			loss = self.loss_criterion(outputs, labels)
-			print(f"Valid loss: {loss}")
 			# measure accuracy and record loss
 			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 			losses.update(loss.data.item(), inputs.size(0))
 			top1.update(prec1.item(), inputs.size(0))
 			top5.update(prec5.item(), inputs.size(0))
-			
+			print(top1.avg)
+			print(f"{mode} loss {loss}")
+			print(f"{mode} loss avg {losses.avg}")
+			print(f"Accuracy avg:{top1.avg}")
+			print(f"Accuracy:{prec1.item()}")
 			# Step Verbose & Tensorboard Summary
 			if step_count % Config.train.verbose_step_count == 0:
-				self._add_summary(step_count, {"loss_valid": losses.avg})
-				self._add_summary(step_count, {"top1_acc_valid": top1.avg})
-				self._add_summary(step_count, {"top5_acc_valid": top5.avg})
-		
+				self._add_summary(step_count, {f"loss_{mode}": losses.avg})
+				self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
+				self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
+				print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}")
+		test_preds = self._test_predictions(train_set, test_set) # testing on only 1 sample mabye redundant
+		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
+		print(f"num_correct: {num_correct}")
+		self.classifier.load_state_dict(old_model_state) # load back model's weights
 		return losses.avg, top1.avg
 	
 	def predict(self,criterion):
@@ -215,43 +224,10 @@ class OneShotAug():
 		# Load model
 		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
-		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
-		for _ in range(5):
-			mini_test_dataset = _sample_mini_dataset(test_loader, self.num_classes, self.num_shots)
-			mini_test_batches = _mini_batches(mini_test_dataset, self.inner_batch_size, self.inner_iters, self.replacement)
-			self.classifier.eval()
+		if self.use_cuda:
 			self.classifier.cuda()
-			for batch_idx, batch in enumerate(mini_test_batches):
-				(inputs, labels) = zip(*batch)
-				step_count = self.prev_meta_step_count + batch_idx + 1  # init value
-				
-				inputs = Variable(torch.stack(inputs))
-				labels = Variable(torch.from_numpy(np.array(labels)))
-				if self.use_cuda:
-					inputs = inputs.cuda()
-					labels = labels.cuda()
-				
-				# compute output
-				outputs = self.classifier(inputs)
-				loss = self.loss_criterion(outputs, labels)
-				# measure accuracy and record loss
-				prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
-				losses.update(loss.data.item(), inputs.size(0))
-				top1.update(prec1.item(), inputs.size(0))
-				top5.update(prec5.item(), inputs.size(0))
-				print(top1.avg)
-				print(f"Test loss {loss}")
-				print(f"Test loss avg {losses.avg}")
-				print(f"Accuracy avg:{top1.avg}")
-				print(f"Accuracy:{prec1.item()}")
-				# Step Verbose & Tensorboard Summary
-				if step_count % Config.train.verbose_step_count == 0:
-					self._add_summary(step_count, {"loss_test": losses.avg})
-					self._add_summary(step_count, {"top1_acc_test": top1.avg})
-					self._add_summary(step_count, {"top5_acc_test": top5.avg})
-					print(f"step{step_count}| valid_loss{losses.avg}| acc{top1.avg}")
-			
-		return losses.avg, top1.avg
+		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
+		return self.evaluate_model(test_loader, mode="test")
 	
 	def build_criterion(self):
 		return torch.nn.CrossEntropyLoss().to(self.device)
@@ -265,3 +241,36 @@ class OneShotAug():
 	def _add_summary(self, step, summary):
 		for tag, value in summary.items():
 			self.tensorboard.scalar_summary(tag, value, step)
+	
+	def _test_predictions(self, train_set, test_set):
+		if self._transductive:
+			inputs, _ = zip(*test_set)
+			return self.classifier(inputs)
+		res = []
+		for test_sample in test_set:
+			inputs, _ = zip(*train_set)
+			inputs=Variable(torch.stack(inputs))
+			inputs+= Variable(torch.stack((test_sample[0],)))
+			if self.use_cuda:
+				inputs.cuda()
+			res.append(torch.argmax(self.classifier(inputs)))
+		return res
+	
+	def evaluate(self,
+	             model,
+	             dataset,
+	             num_classes=5,
+	             num_shots=5,
+	             eval_inner_batch_size=5,
+	             eval_inner_iters=50,
+	             replacement=False,
+	             num_samples=10000,
+	             transductive=False,
+	             weight_decay_rate=1):
+		"""
+		Evaluate a model on a dataset. Final test!
+		"""
+		total_correct = 0
+		for _ in range(num_samples):
+			total_correct += self.evaluate_model(dataset,mode="toatl_test")
+		return total_correct / (num_samples * num_classes)
