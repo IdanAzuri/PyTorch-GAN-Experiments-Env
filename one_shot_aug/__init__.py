@@ -252,6 +252,7 @@ class OneShotAug():
 			inputs=Variable(torch.stack(inputs))
 			inputs+= Variable(torch.stack((test_sample[0],)))
 			if self.use_cuda:
+				self.classifier.cuda()
 				inputs.cuda()
 			res.append(torch.argmax(self.classifier(inputs)))
 		return res
