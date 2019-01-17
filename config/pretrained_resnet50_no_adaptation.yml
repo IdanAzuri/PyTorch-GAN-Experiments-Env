@@ -28,7 +28,7 @@ model:
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
 train:
-    model_dir: "outputs/pretrainedresnet_50"
+    model_dir: "outputs/pretrained_resnet50_no_adaptation"
     batch_size: 64
     shuffle: true
     
