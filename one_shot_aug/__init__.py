@@ -258,16 +258,9 @@ class OneShotAug():
 		return res
 	
 	def evaluate(self,
-	             model,
 	             dataset,
 	             num_classes=5,
-	             num_shots=5,
-	             eval_inner_batch_size=5,
-	             eval_inner_iters=50,
-	             replacement=False,
-	             num_samples=1000,
-	             transductive=False,
-	             weight_decay_rate=1):
+	             num_samples=1000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
