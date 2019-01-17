@@ -74,23 +74,34 @@ class OneShotAug():
 				print("Using ", torch.cuda.device_count(), " GPUs!")
 			cudnn.benchmark = True
 		print('Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
-		best_loss = 10e10
+		best_loss = 10000
 		best_model_wts = deepcopy(self.classifier.state_dict())
 		for meta_epoch in range(self.meta_batch_size):
 			while True:
 				self.meta_step_count = self.prev_meta_step_count + 1  # init value
 				# training
-				train_loss, train_acc = self._train_epoch(_sample_mini_dataset(train_loader, self.num_classes, self.num_shots))
-				# validation
-				validation_loss, validation_acc = self.evaluate_model(validation_loader)
-				
-				self.logger.append([self.meta_step_count, self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
-				epoch_loss = validation_loss
-				# deep copy the model
-				if epoch_loss < best_loss:
-					print(f"step {self.meta_step_count}: update best weights prev_loss{best_loss} new_best_loss{epoch_loss}")
-					best_loss = epoch_loss
-					best_model_wts = deepcopy(self.classifier.state_dict())
+				train_loss, train_acc = self._train_epoch(train_loader)
+				if self.meta_step_count % 10:
+					# validation
+					# Step Verbose & Tensorboard Summary
+					if self.meta_step_count % Config.train.verbose_step_count == 0:
+						validation_loss, validation_acc, num_correct = self.evaluate_model(validation_loader)
+						self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
+						self._add_summary(self.meta_step_count, {"top1_acc_valid": validation_acc})
+						self._add_summary(self.meta_step_count, {"accuracy_valid": num_correct/self.num_classes})
+						
+						train_loss, train_acc, train_num_correct = self.evaluate_model(train_loader)
+						self._add_summary(self.meta_step_count, {"loss_train": train_loss})
+						self._add_summary(self.meta_step_count, {"top1_acc_train": train_acc})
+						self._add_summary(self.meta_step_count, {"accuracy_train": train_num_correct/self.num_classes})
+
+						self.logger.append([self.meta_step_count, self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
+						epoch_loss = validation_loss
+						# deep copy the model
+						if epoch_loss < best_loss:
+							print(f"step {self.meta_step_count}: update best weights prev_loss{best_loss} new_best_loss{epoch_loss}")
+							best_loss = epoch_loss
+							best_model_wts = deepcopy(self.classifier.state_dict())
 				
 				if self.meta_step_count % 1000 == 0:
 					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
@@ -105,19 +116,17 @@ class OneShotAug():
 	
 	def _train_epoch(self, train_loader):
 		self.classifier.train()
-		batch_time = AverageMeter()
 		data_time = AverageMeter()
 		losses = AverageMeter()
 		top1 = AverageMeter()
 		top5 = AverageMeter()
 		end = time.time()
-		mini_train_loader = _mini_batches(train_loader, self.inner_batch_size, self.inner_iters, self.replacement)
+		mini_data_set= _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		
-		if Config.train.show_progrees_bar:
-			bar = Bar('Processing', max=self.num_classes * self.num_shots)
 		for batch_idx, batch in enumerate(mini_train_loader):
 			(inputs, labels) = zip(*batch)
-			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
+			self.meta_step_count = self.prev_meta_step_count + batch_idx + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
@@ -142,24 +151,7 @@ class OneShotAug():
 			loss.backward()
 			self.classifier_optimizer.step()
 			
-			# Step Verbose & Tensorboard Summary
-			if self.meta_step_count + batch_idx % Config.train.verbose_step_count == 0:
-				self._add_summary(step_count, {"loss_train": losses.avg})
-				self._add_summary(step_count, {"top1_acc_train": top1.avg})
-				self._add_summary(step_count, {"top5_acc_train": top5.avg})
-			
-			# measure elapsed time
-			batch_time.update(time.time() - end)
-			end = time.time()
-			
-			# plot progress
-			if Config.train.show_progrees_bar:
-				bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
-					batch=batch_idx + 1, size=inputs.size(0), data=data_time.val, bt=batch_time.val, total=bar.elapsed_td, eta=bar.eta_td, loss=losses.avg, top1=top1.avg,
-					top5=top5.avg)
-				bar.next()
-		if Config.train.show_progrees_bar:
-			bar.finish()
+
 		# Save model parameters
 		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(self.meta_step_count, self.model_path, self.classifier, self.classifier_optimizer)
@@ -168,12 +160,9 @@ class OneShotAug():
 	
 	def evaluate_model(self, dataset, mode="valid"):
 		self.classifier.eval()
-		batch_time = AverageMeter()
-		data_time = AverageMeter()
 		losses = AverageMeter()
 		top1 = AverageMeter()
 		top5 = AverageMeter()
-		end = time.time()
 		
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		old_model_state = deepcopy(self.classifier.state_dict())  # store weights to avoid training
@@ -182,7 +171,6 @@ class OneShotAug():
 			(inputs, labels) = zip(*batch)
 			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
 			# measure data loading time
-			data_time.update(time.time() - end)
 			
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
@@ -198,24 +186,19 @@ class OneShotAug():
 			losses.update(loss.data.item(), inputs.size(0))
 			top1.update(prec1.item(), inputs.size(0))
 			top5.update(prec5.item(), inputs.size(0))
-			print(top1.avg)
-			print(f"{mode} loss {loss}")
-			print(f"{mode} loss avg {losses.avg}")
-			print(f"Accuracy avg:{top1.avg}")
-			print(f"Accuracy:{prec1.item()}")
 			# Step Verbose & Tensorboard Summary
-			if step_count % Config.train.verbose_step_count == 0:
-				self._add_summary(step_count, {f"loss_{mode}": losses.avg})
-				self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
-				self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
-				print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}")
+			# if step_count % Config.train.verbose_step_count == 0:
+			# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
+			# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
+			# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
+			# print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}")
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
 		print(f"num_correct: {num_correct}")
 		self.classifier.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
 			return num_correct
-		return losses.avg, top1.avg
+		return losses.avg, top1.avg, num_correct
 	
 	def predict(self, criterion):
 		print("Predicting on test set...")
