@@ -218,16 +218,15 @@ class OneShotAug():
 	def predict(self,criterion):
 		print("Predicting on test set...")
 		self.loss_criterion = criterion
-		losses = AverageMeter()
-		top1 = AverageMeter()
-		top5 = AverageMeter()
+
 		# Load model
 		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		if self.use_cuda:
 			self.classifier.cuda()
 		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
-		return self.evaluate_model(test_loader, mode="test")
+		
+		return self.evaluate(test_loader)
 	
 	def build_criterion(self):
 		return torch.nn.CrossEntropyLoss().to(self.device)
@@ -245,6 +244,8 @@ class OneShotAug():
 	def _test_predictions(self, train_set, test_set):
 		if self._transductive:
 			inputs, _ = zip(*test_set)
+			if self.use_cuda:
+				inputs.cuda()
 			return self.classifier(inputs)
 		res = []
 		for test_sample in test_set:
@@ -252,7 +253,6 @@ class OneShotAug():
 			inputs=Variable(torch.stack(inputs))
 			inputs+= Variable(torch.stack((test_sample[0],)))
 			if self.use_cuda:
-				self.classifier.cuda()
 				inputs.cuda()
 			res.append(torch.argmax(self.classifier(inputs)))
 		return res
@@ -265,7 +265,7 @@ class OneShotAug():
 	             eval_inner_batch_size=5,
 	             eval_inner_iters=50,
 	             replacement=False,
-	             num_samples=10000,
+	             num_samples=1000,
 	             transductive=False,
 	             weight_decay_rate=1):
 		"""
