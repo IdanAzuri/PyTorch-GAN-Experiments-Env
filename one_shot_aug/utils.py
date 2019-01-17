@@ -8,6 +8,7 @@ import numpy as np
 import scipy.misc
 import tensorflow as tf
 import torch
+from hbconfig import Config
 
 
 def load_saved_model(path, model, optimizer):
@@ -51,7 +52,7 @@ def save_checkpoint(step, path, model, optimizer, max_to_keep=3):
 	for i in range(len(sorted_path) - max_to_keep):
 		os.remove(sorted_path[i])
 	
-	full_path = os.path.join(path, model.name + f"-{step}.pkl")
+	full_path = os.path.join(path, Config.model.name + f"-{step}.pkl")
 	torch.save({"step_count": step, "model": model.state_dict(), "optimizer": optimizer.state_dict()}, full_path)
 	print(f"Save checkpoints...! {full_path}")
 
