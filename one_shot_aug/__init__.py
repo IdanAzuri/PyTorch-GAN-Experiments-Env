@@ -74,7 +74,7 @@ class OneShotAug():
 				print("Using ", torch.cuda.device_count(), " GPUs!")
 			cudnn.benchmark = True
 		print('Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
-		best_loss = 10000
+		best_loss = 10e7
 		best_model_wts = deepcopy(self.classifier.state_dict())
 		for meta_epoch in range(self.meta_batch_size):
 			while True:
@@ -96,11 +96,10 @@ class OneShotAug():
 						self._add_summary(self.meta_step_count, {"accuracy_train": train_num_correct/self.num_classes})
 
 						self.logger.append([self.meta_step_count, self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
-						epoch_loss = validation_loss
 						# deep copy the model
-						if epoch_loss < best_loss:
-							print(f"step {self.meta_step_count}: update best weights prev_loss{best_loss} new_best_loss{epoch_loss}")
-							best_loss = epoch_loss
+						print(f"step {self.meta_step_count}: update best weights prev_loss{best_loss} new_best_loss{validation_loss}")
+						if validation_loss < best_loss:
+							best_loss = validation_loss
 							best_model_wts = deepcopy(self.classifier.state_dict())
 				
 				if self.meta_step_count % 1000 == 0:
@@ -244,7 +243,7 @@ class OneShotAug():
 			res.append(torch.argmax(self.classifier(inputs)))
 		return res
 	
-	def evaluate(self, dataset, num_classes=5, num_samples=2):
+	def evaluate(self, dataset, num_classes=5, num_samples=10000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
