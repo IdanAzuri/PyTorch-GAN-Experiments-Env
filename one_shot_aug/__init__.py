@@ -103,7 +103,7 @@ class OneShotAug():
 							best_loss = epoch_loss
 							best_model_wts = deepcopy(self.classifier.state_dict())
 				
-				if self.meta_step_count % 1000 == 0:
+				if self.meta_step_count % 10000 == 0:
 					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
 					print('save!')
 				self.prev_meta_step_count = self.meta_step_count
