@@ -176,7 +176,7 @@ class OneShotAug():
 		
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
-		mini_batches = _mini_batches(train_set, self.inner_batch_size, self.inner_iters, self.replacement)
+		mini_batches = _mini_batches(train_set,  Config.eval.eval_inner_iter, Config.eval.eval_inner_iter , self.replacement)
 		for batch_idx, batch in enumerate(mini_batches):
 			(inputs, labels) = zip(*batch)
 			step_count = self.prev_meta_step_count + 1  # init value

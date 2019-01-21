@@ -49,9 +49,13 @@ train:
     show_progrees_bar: False
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
     inner_iters: 20 #n umber of inner-loop iterations.
+    eval_inner_iters: 50
     replacement: False # sample with replacement.
     meta_batch_size: 1 # how many inner-loops to run
     meta_iters: 400000 # epochs
+eval:
+    eval_inner_iters: 50
+    inner_batch_size: 5 # batch size for every inner-loop training iteration.
 predict:
     batch_size: 64
 
