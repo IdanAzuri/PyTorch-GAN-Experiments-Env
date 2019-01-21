@@ -1,7 +1,10 @@
+import torch
+
 import numpy as np
 import torch.nn as nn
 import torchvision.models as models
 from hbconfig import Config
+from torch.autograd import Variable
 from torch.nn import init
 
 
@@ -122,6 +125,21 @@ class MiniImageNetModel(nn.Module):
 		x = x.view(x.size(0), -1)
 		x = self.out(x)
 		return x
+	
+	def point_grad_to(self, target):
+		'''
+		from reptile
+		Set .grad attribute of each parameter to be proportional
+		to the difference between self and target
+		'''
+		for p, target_p in zip(self.parameters(), target.parameters()):
+			if p.grad is None:
+				if self.is_cuda():
+					p.grad = Variable(torch.zeros(p.size())).cuda()
+				else:
+					p.grad = Variable(torch.zeros(p.size()))
+			p.grad.data.zero_()  # not sure this is required
+			p.grad.data.add_(p.data - target_p.data)
 
 
 def _conv_layer(n_input, n_output, k):

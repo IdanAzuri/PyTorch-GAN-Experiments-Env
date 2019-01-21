@@ -16,6 +16,7 @@ from torch.optim import lr_scheduler
 from utils import saving_config
 
 from . import utils
+outerstepsize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
 
 
 class OneShotAug():
@@ -35,15 +36,16 @@ class OneShotAug():
 		self.inner_iters = Config.train.inner_iters
 		self.replacement = Config.train.replacement
 		self.meta_batch_size = Config.train.meta_batch_size
+		self.meta_step_count = 0
 		# load model
 		# self.classifier.model.load_state_dict(torch.load(os.path.join(self.model_path + str(Config.model.name) + '.t7')))
 		if Config.model.type == "known_net":
-			self.classifier = PretrainedClassifier()
-			self.title = self.classifier.title
-			self.classifier = self.classifier.model
+			self.net = PretrainedClassifier()
+			self.title = self.net.title
+			self.net = self.net.model
 		else:
-			self.classifier = MiniImageNetModel()
-			self.title = self.classifier.title
+			self.net = MiniImageNetModel()
+			self.title = self.net.title
 		self.learning_rate = Config.train.learning_rate
 		self.c_path = f"{Config.train.model_dir}/log"
 		self.model_path = f"{Config.train.model_dir}/model"
@@ -58,7 +60,7 @@ class OneShotAug():
 		self.exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=5000, gamma=0.1)
 		
 		if resume:
-			self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
+			self.prev_meta_step_count, self.net, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.net, self.classifier_optimizer)
 			print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.title)
 		self.logger.set_names(['step', 'Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
@@ -69,21 +71,23 @@ class OneShotAug():
 		# switch to train mode
 		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 		if self.use_cuda:
-			self.classifier = torch.nn.DataParallel(self.classifier).to(self.device)
+			self.net = torch.nn.DataParallel(self.net).to(self.device)
 			if torch.cuda.device_count() > 1:
 				print("Using ", torch.cuda.device_count(), " GPUs!")
 			cudnn.benchmark = True
-		print('Total params: %.2fM' % (sum(p.numel() for p in self.classifier.parameters()) / 1000000.0))
+		print('Total params: %.2fM' % (sum(p.numel() for p in self.net.parameters()) / 1000000.0))
 		best_loss = 10e7
-		best_model_wts = deepcopy(self.classifier.state_dict())
+		best_model_wts = deepcopy(self.net.state_dict())
 		for meta_epoch in range(self.meta_batch_size):
 			while True:
+				weights_before = deepcopy(self.net.state_dict())
 				self.meta_step_count = self.prev_meta_step_count + 1  # init value
 				# training
 				train_loss, train_acc = self._train_epoch(train_loader)
-				if self.meta_step_count % 10:
+				if self.meta_step_count % 100 == 0:
 					# validation
 					# Step Verbose & Tensorboard Summary
+					print(self.prev_meta_step_count)
 					if self.meta_step_count % Config.train.verbose_step_count == 0:
 						validation_loss, validation_acc, num_correct = self.evaluate_model(validation_loader)
 						self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
@@ -97,10 +101,17 @@ class OneShotAug():
 
 						self.logger.append([self.meta_step_count, self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
 						# deep copy the model
-						print(f"step {self.meta_step_count}: update best weights prev_loss{best_loss} new_best_loss{validation_loss}")
-						if validation_loss < best_loss:
-							best_loss = validation_loss
-							best_model_wts = deepcopy(self.classifier.state_dict())
+						print(f"step {self.meta_step_count}:_loss{validation_loss}")
+					# Interpolate between current weights and trained weights from this task
+					# I.e. (weights_before - weights_after) is the meta-gradient
+					weights_after = self.net.state_dict()
+					outerstepsize = outerstepsize0 * (1 - self.meta_step_count / Config.train.meta_iters) # linear schedule
+					self.net.load_state_dict({name :
+						                       weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize
+					                       for name in weights_before})
+						# if validation_loss < best_loss:
+						# 	best_loss = validation_loss
+						# 	best_model_wts = deepcopy(self.classifier.state_dict())
 				
 				if self.meta_step_count % 10000 == 0:
 					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
@@ -114,7 +125,7 @@ class OneShotAug():
 					break
 	
 	def _train_epoch(self, train_loader):
-		self.classifier.train()
+		self.net.train()
 		data_time = AverageMeter()
 		losses = AverageMeter()
 		top1 = AverageMeter()
@@ -125,7 +136,7 @@ class OneShotAug():
 		
 		for batch_idx, batch in enumerate(mini_train_loader):
 			(inputs, labels) = zip(*batch)
-			self.meta_step_count = self.prev_meta_step_count + batch_idx + 1  # init value
+			self.meta_step_count = self.prev_meta_step_count + 1  # init value
 			# measure data loading time
 			data_time.update(time.time() - end)
 			
@@ -136,7 +147,7 @@ class OneShotAug():
 				labels = labels.cuda()
 			
 			# compute output
-			outputs = self.classifier(inputs)
+			outputs = self.net(inputs)
 			loss = self.loss_criterion(outputs, labels)
 			
 			# measure accuracy and record loss
@@ -153,22 +164,22 @@ class OneShotAug():
 
 		# Save model parameters
 		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
-			utils.save_checkpoint(self.meta_step_count, self.model_path, self.classifier, self.classifier_optimizer)
+			utils.save_checkpoint(self.meta_step_count, self.model_path, self.net, self.classifier_optimizer)
 		
 		return losses.avg, top1.avg
 	
 	def evaluate_model(self, dataset, mode="valid"):
-		self.classifier.eval()
+		self.net.eval()
 		losses = AverageMeter()
 		top1 = AverageMeter()
 		top5 = AverageMeter()
 		
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
-		old_model_state = deepcopy(self.classifier.state_dict())  # store weights to avoid training
+		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_batches):
 			(inputs, labels) = zip(*batch)
-			step_count = self.prev_meta_step_count + batch_idx + 1  # init value
+			step_count = self.prev_meta_step_count + 1  # init value
 			# measure data loading time
 			
 			inputs = Variable(torch.stack(inputs))
@@ -178,7 +189,7 @@ class OneShotAug():
 				labels = labels.cuda()
 			
 			# compute output
-			outputs = self.classifier(inputs)
+			outputs = self.net(inputs)
 			loss = self.loss_criterion(outputs, labels)
 			# measure accuracy and record loss
 			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
@@ -192,9 +203,10 @@ class OneShotAug():
 			# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
+		
 		print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}, num_correct: {num_correct}")
 		self.prev_meta_step_count = step_count
-		self.classifier.load_state_dict(old_model_state)  # load back model's weights
+		self.net.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
 			return num_correct
 		return losses.avg, top1.avg, num_correct
@@ -204,10 +216,10 @@ class OneShotAug():
 		self.loss_criterion = criterion
 		
 		# Load model
-		self.prev_meta_step_count, self.classifier, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.classifier, self.classifier_optimizer)
+		self.prev_meta_step_count, self.net, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.net, self.classifier_optimizer)
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		if self.use_cuda:
-			self.classifier.cuda()
+			self.net.cuda()
 		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
 		evaluation = self.evaluate(test_loader)
 		print(f"Total score: {evaluation}")
@@ -231,7 +243,7 @@ class OneShotAug():
 			inputs, _ = zip(*test_set)
 			if self.use_cuda:
 				inputs.cuda()
-			return self.classifier(inputs)
+			return self.net(inputs)
 		res = []
 		for test_sample in test_set:
 			inputs, _ = zip(*train_set)
@@ -241,7 +253,7 @@ class OneShotAug():
 			else:
 				inputs = Variable(torch.stack(inputs))
 				inputs += Variable(torch.stack((test_sample[0],)))
-			res.append(torch.argmax(self.classifier(inputs)))
+			res.append(torch.argmax(self.net(inputs)))
 		return res
 	
 	def evaluate(self, dataset, num_classes=5, num_samples=10000):
