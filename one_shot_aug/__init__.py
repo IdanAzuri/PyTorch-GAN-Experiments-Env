@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from copy import deepcopy
 
@@ -63,7 +64,7 @@ class OneShotAug():
 			self.prev_meta_step_count, self.net, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.net, self.classifier_optimizer)
 			print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		self.logger = Logger(os.path.join(self.c_path, 'log.txt'), title=self.title)
-		self.logger.set_names(['step', 'Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.', 'Valid Acc.'])
+		self.logger.set_names(['step', 'Learning Rate', 'Train Acc.', 'Valid Acc.'])
 		return self._train
 	
 	def _train(self, data_loader):
@@ -78,41 +79,38 @@ class OneShotAug():
 		print('Total params: %.2fM' % (sum(p.numel() for p in self.net.parameters()) / 1000000.0))
 		best_loss = 10e7
 		best_model_wts = deepcopy(self.net.state_dict())
-		for meta_epoch in range(self.meta_batch_size):
-			while True:
-				weights_before = deepcopy(self.net.state_dict())
-				self.meta_step_count = self.prev_meta_step_count + 1  # init value
-				# training
-				train_loss, train_acc = self._train_epoch(train_loader)
-				if self.meta_step_count % 100 == 0:
-					# validation
-					# Step Verbose & Tensorboard Summary
-					print(self.prev_meta_step_count)
-					if self.meta_step_count % Config.train.verbose_step_count == 0:
-						validation_loss, validation_acc, num_correct = self.evaluate_model(validation_loader)
-						self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
-						self._add_summary(self.meta_step_count, {"top1_acc_valid": validation_acc})
-						self._add_summary(self.meta_step_count, {"accuracy_valid": num_correct/self.num_classes})
-						
-						train_loss, train_acc, train_num_correct = self.evaluate_model(train_loader)
-						self._add_summary(self.meta_step_count, {"loss_train": train_loss})
-						self._add_summary(self.meta_step_count, {"top1_acc_train": train_acc})
-						self._add_summary(self.meta_step_count, {"accuracy_train": train_num_correct/self.num_classes})
+		while True:
+			# weights_before = deepcopy(self.net.state_dict())
+			self.meta_step_count = self.prev_meta_step_count + 1  # init value
+			# training
+			self._train_step(train_loader)
+			# validation
+			if self.meta_step_count % 100 == 0:
+				# Step Verbose & Tensorboard Summary
+				print(self.prev_meta_step_count)
+				if self.meta_step_count % Config.train.verbose_step_count == 0:
+					validation_num_correct = self.evaluate_model(validation_loader)
+					# self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
+					# self._add_summary(self.meta_step_count, {"top1_acc_valid": validation_acc})
+					valid_acc_eval = validation_num_correct / self.num_classes
+					self._add_summary(self.meta_step_count, {"accuracy_valid": valid_acc_eval})
+					
+					train_num_correct = self.evaluate_model(train_loader)
+					# self._add_summary(self.meta_step_count, {"loss_train": train_loss})
+					# self._add_summary(self.meta_step_count, {"top1_acc_train": train_acc})
+					train_acc_eval = train_num_correct / self.num_classes
+					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
 
-						self.logger.append([self.meta_step_count, self.learning_rate, train_loss, validation_loss, train_acc, validation_acc])
-						# deep copy the model
-						print(f"step {self.meta_step_count}:_loss{validation_loss}")
-					# Interpolate between current weights and trained weights from this task
-					# I.e. (weights_before - weights_after) is the meta-gradient
-					weights_after = self.net.state_dict()
-					outerstepsize = outerstepsize0 * (1 - self.meta_step_count / Config.train.meta_iters) # linear schedule
-					self.net.load_state_dict({name :
-						                       weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize
-					                       for name in weights_before})
-						# if validation_loss < best_loss:
-						# 	best_loss = validation_loss
-						# 	best_model_wts = deepcopy(self.classifier.state_dict())
+					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval, valid_acc_eval])
+					# deep copy the model
+					# print(f"step {self.meta_step_count}:_loss{validation_loss}")
+				# Interpolate between current weights and trained weights from this task
+				# I.e. (weights_before - weights_after) is the meta-gradient
 				
+					# if validation_loss < best_loss:
+					# 	best_loss = validation_loss
+					# 	best_model_wts = deepcopy(self.classifier.state_dict())
+			
 				if self.meta_step_count % 10000 == 0:
 					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
 					print('save!')
@@ -122,51 +120,59 @@ class OneShotAug():
 				self.exp_lr_scheduler.step()
 				if self.meta_step_count >= Config.train.meta_iters:
 					self.predict(self.loss_criterion)
-					break
+					sys.exit()
 	
-	def _train_epoch(self, train_loader):
+	def _train_step(self, train_loader):
 		self.net.train()
 		data_time = AverageMeter()
-		losses = AverageMeter()
-		top1 = AverageMeter()
-		top5 = AverageMeter()
+		# losses = AverageMeter()
+		# top1 = AverageMeter()
+		# top5 = AverageMeter()
 		end = time.time()
-		mini_data_set= _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
-		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
-		
-		for batch_idx, batch in enumerate(mini_train_loader):
-			(inputs, labels) = zip(*batch)
-			self.meta_step_count = self.prev_meta_step_count + 1  # init value
-			# measure data loading time
-			data_time.update(time.time() - end)
+		weights_before = deepcopy(self.net.state_dict())
+		new_vars = []
+		for _ in range(self.meta_batch_size):
+			mini_data_set= _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+			mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 			
-			inputs = Variable(torch.stack(inputs))
-			labels = Variable(torch.from_numpy(np.array(labels)))
-			if self.use_cuda:
-				inputs = inputs.cuda()
-				labels = labels.cuda()
-			
-			# compute output
-			outputs = self.net(inputs)
-			loss = self.loss_criterion(outputs, labels)
-			
-			# measure accuracy and record loss
-			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
-			losses.update(loss.data.item(), inputs.size(0))
-			top1.update(prec1.item(), inputs.size(0))
-			top5.update(prec5.item(), inputs.size(0))
-			
-			# compute gradient and do SGD step
-			self.classifier_optimizer.zero_grad()
-			loss.backward()
-			self.classifier_optimizer.step()
-			
+			for batch_idx, batch in enumerate(mini_train_loader):
+				(inputs, labels) = zip(*batch)
+				self.meta_step_count = self.prev_meta_step_count + 1  # init value
+				# measure data loading time
+				data_time.update(time.time() - end)
+				
+				inputs = Variable(torch.stack(inputs))
+				labels = Variable(torch.from_numpy(np.array(labels)))
+				if self.use_cuda:
+					inputs = inputs.cuda()
+					labels = labels.cuda()
+				
+				# compute output
+				outputs = self.net(inputs)
+				loss = self.loss_criterion(outputs, labels)
+				
+				# # measure accuracy and record loss
+				# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
+				# losses.update(loss.data.item(), inputs.size(0))
+				# top1.update(prec1.item(), inputs.size(0))
+				# top5.update(prec5.item(), inputs.size(0))
+				
+				# compute gradient and do SGD step
+				self.classifier_optimizer.zero_grad()
+				loss.backward()
+				self.classifier_optimizer.step()
+		weights_after = self.net.state_dict()
+		outerstepsize = outerstepsize0 * (1 - self.meta_step_count / Config.train.meta_iters) # linear schedule
+		#interpolate vars
+		self.net.load_state_dict({name :
+			                          weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize
+		                          for name in weights_before})
 
 		# Save model parameters
 		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(self.meta_step_count, self.model_path, self.net, self.classifier_optimizer)
 		
-		return losses.avg, top1.avg
+		return #losses.avg, top1.avg
 	
 	def evaluate_model(self, dataset, mode="valid"):
 		self.net.eval()
@@ -176,9 +182,10 @@ class OneShotAug():
 		
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
-		mini_batches = _mini_batches(train_set,  Config.eval.eval_inner_iters, Config.eval.eval_inner_iter , self.replacement)
+		mini_batches = _mini_batches(train_set,  Config.eval.eval_inner_iters, Config.eval.eval_inner_iters , self.replacement)
+		#train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
-			(inputs, labels) = zip(*batch)
+			inputs, labels = zip(*batch)
 			step_count = self.prev_meta_step_count + 1  # init value
 			# measure data loading time
 			
@@ -192,24 +199,24 @@ class OneShotAug():
 			outputs = self.net(inputs)
 			loss = self.loss_criterion(outputs, labels)
 			# measure accuracy and record loss
-			prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
-			losses.update(loss.data.item(), inputs.size(0))
-			top1.update(prec1.item(), inputs.size(0))
-			top5.update(prec5.item(), inputs.size(0))
-			# Step Verbose & Tensorboard Summary
-			# if step_count % Config.train.verbose_step_count == 0:
-			# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
-			# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
-			# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
+		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
+		# losses.update(loss.data.item(), inputs.size(0))
+		# top1.update(prec1.item(), inputs.size(0))
+		# top5.update(prec5.item(), inputs.size(0))
+		# Step Verbose & Tensorboard Summary
+		# if step_count % Config.train.verbose_step_count == 0:
+		# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
+		# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
+		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
 		
-		print(f"step{step_count}| {mode}_loss{losses.avg}| acc{top1.avg}, num_correct: {num_correct}")
+		print(f"step{step_count}| num_correct: {num_correct}")
 		self.prev_meta_step_count = step_count
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
 			return num_correct
-		return losses.avg, top1.avg, num_correct
+		return num_correct
 	
 	def predict(self, criterion):
 		print("Predicting on test set...")
