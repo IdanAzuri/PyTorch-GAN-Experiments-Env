@@ -77,7 +77,6 @@ class OneShotAug():
 				print("Using ", torch.cuda.device_count(), " GPUs!")
 			cudnn.benchmark = True
 		print('Total params: %.2fM' % (sum(p.numel() for p in self.net.parameters()) / 1000000.0))
-		best_loss = 10e7
 		best_model_wts = deepcopy(self.net.state_dict())
 		while True:
 			# weights_before = deepcopy(self.net.state_dict())
@@ -119,6 +118,7 @@ class OneShotAug():
 				# update learning rate
 				
 				self.exp_lr_scheduler.step()
+				print(f"self.meta_step_count{self.meta_step_count}")
 				if self.meta_step_count >= Config.train.meta_iters:
 					self.predict(self.loss_criterion)
 					sys.exit()
