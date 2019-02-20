@@ -82,12 +82,13 @@ class OneShotAug():
 		while True:
 			# weights_before = deepcopy(self.net.state_dict())
 			self.meta_step_count = self.prev_meta_step_count + 1  # init value
+			self.prev_meta_step_count = self.meta_step_count
 			# training
 			self._train_step(train_loader)
 			# validation
 			if self.meta_step_count % 100 == 0:
 				# Step Verbose & Tensorboard Summary
-				print(self.prev_meta_step_count)
+				print(f"prev_meta_step_count {self.prev_meta_step_count}")
 				if self.meta_step_count % Config.train.verbose_step_count == 0:
 					validation_num_correct = self.evaluate_model(validation_loader)
 					# self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
@@ -114,7 +115,7 @@ class OneShotAug():
 				if self.meta_step_count % 10000 == 0:
 					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
 					print('save!')
-				self.prev_meta_step_count = self.meta_step_count
+				
 				# update learning rate
 				
 				self.exp_lr_scheduler.step()
@@ -130,7 +131,6 @@ class OneShotAug():
 		# top5 = AverageMeter()
 		end = time.time()
 		weights_before = deepcopy(self.net.state_dict())
-		new_vars = []
 		for _ in range(self.meta_batch_size):
 			mini_data_set= _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
 			mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
