@@ -85,7 +85,7 @@ class OneShotAug():
 			# training
 			self._train_step(train_loader)
 			# validation
-			if self.meta_step_count % 100 == 0:
+			if self.meta_step_count % 10 == 0:
 				# Step Verbose & Tensorboard Summary
 				print(f"prev_meta_step_count {self.prev_meta_step_count}")
 				if self.meta_step_count % Config.train.verbose_step_count == 0:
@@ -94,12 +94,14 @@ class OneShotAug():
 					# self._add_summary(self.meta_step_count, {"top1_acc_valid": validation_acc})
 					valid_acc_eval = validation_num_correct / self.num_classes
 					self._add_summary(self.meta_step_count, {"accuracy_valid": valid_acc_eval})
+					print(f"step{self.meta_step_count}| accuracy_valid: {valid_acc_eval}")
 					
 					train_num_correct = self.evaluate_model(train_loader)
 					# self._add_summary(self.meta_step_count, {"loss_train": train_loss})
 					# self._add_summary(self.meta_step_count, {"top1_acc_train": train_acc})
 					train_acc_eval = train_num_correct / self.num_classes
 					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
+					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}")
 
 					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval, valid_acc_eval])
 					# deep copy the model
@@ -211,7 +213,6 @@ class OneShotAug():
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
 		
-		print(f"step{step_count}| num_correct: {num_correct}")
 		self.prev_meta_step_count = step_count
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
