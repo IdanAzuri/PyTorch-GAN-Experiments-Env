@@ -95,7 +95,6 @@ class OneShotAug():
 					# valid_acc_eval = validation_num_correct / self.num_classes
 					valid_acc_eval = float(validation_num_correct) / self.num_classes
 					self._add_summary(self.meta_step_count, {"accuracy_valid": valid_acc_eval})
-					print(f"step{self.meta_step_count}| accuracy_valid: {valid_acc_eval}")
 					
 					train_num_correct = self.evaluate_model(train_loader)
 					# self._add_summary(self.meta_step_count, {"loss_train": train_loss})
