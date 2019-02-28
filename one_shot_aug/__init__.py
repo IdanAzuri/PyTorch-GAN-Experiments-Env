@@ -101,7 +101,7 @@ class OneShotAug():
 					# train_acc_eval = train_num_correct / self.num_classes
 					train_acc_eval = float(train_num_correct) / self.num_classes
 					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
-					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}")
+					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}| accuracy_valid:{valid_acc_eval}")
 
 					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval, valid_acc_eval])
 					# deep copy the model
