@@ -121,7 +121,6 @@ class OneShotAug():
 				# update learning rate
 				
 				self.exp_lr_scheduler.step()
-				print(f"self.meta_step_count{self.meta_step_count}")
 				if self.meta_step_count >= Config.train.meta_iters:
 					self.predict(self.loss_criterion)
 					sys.exit()
