@@ -20,7 +20,7 @@ model:
     
     z_dim: 100  # Random noise dimension coming into generator, per output vector
     real_dim: 1024  #$image_size * image_size
-    filters: 64
+    filters: 32
     conv1: 16
     conv2: 32
     conv3: 64
