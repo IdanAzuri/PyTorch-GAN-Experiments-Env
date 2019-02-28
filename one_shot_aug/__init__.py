@@ -87,7 +87,6 @@ class OneShotAug():
 			# validation
 			if self.meta_step_count % 10 == 0:
 				# Step Verbose & Tensorboard Summary
-				print(f"prev_meta_step_count {self.prev_meta_step_count}")
 				if self.meta_step_count % Config.train.verbose_step_count == 0:
 					validation_num_correct = self.evaluate_model(validation_loader)
 					# self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
