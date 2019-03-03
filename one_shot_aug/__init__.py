@@ -76,7 +76,7 @@ class OneShotAug():
 			if torch.cuda.device_count() > 1:
 				print("Using ", torch.cuda.device_count(), " GPUs!")
 			cudnn.benchmark = True
-		print('Total params: %.2fM' % (sum(p.numel() for p in self.net.parameters()) / 1000000.0))
+		print('Total params: %.2fK' % (sum(p.numel() for p in self.net.parameters()) / 1000.0))
 		best_model_wts = deepcopy(self.net.state_dict())
 		while True:
 			# weights_before = deepcopy(self.net.state_dict())
