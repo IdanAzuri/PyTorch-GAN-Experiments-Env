@@ -35,7 +35,7 @@ model:
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
 train:
-    model_dir: "outputs/4conv"
+    model_dir: "outputs/4conv_b"
     batch_size: 64
     shuffle: true
     
@@ -47,16 +47,16 @@ train:
     save_checkpoints_steps: 1000
     verbose_step_count: 50
     show_progrees_bar: False
-    inner_batch_size: 5 # batch size for every inner-loop training iteration.
-    inner_iters: 20 #n umber of inner-loop iterations.
+    inner_batch_size: 8 # batch size for every inner-loop training iteration.
+    inner_iters: 10 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
     meta_batch_size: 1 # how many inner-loops to run
-    meta_iters: 400000 # epochs
+    meta_iters: 100000 # epochs
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
 predict:
-    batch_size: 64
+    batch_size: 23
 
 slack:
     webhook_url: ""  # after training notify you using slack-webhook

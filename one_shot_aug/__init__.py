@@ -195,7 +195,7 @@ class OneShotAug():
 		#train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
-			step_count = self.prev_meta_step_count + 1  # init value
+			# step_count = self.prev_meta_step_count + 1  # init value
 			# measure data loading time
 			
 			inputs = Variable(torch.stack(inputs))
@@ -220,7 +220,7 @@ class OneShotAug():
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
 		
-		self.prev_meta_step_count = step_count
+		# self.prev_meta_step_count = step_count
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
 			return num_correct
