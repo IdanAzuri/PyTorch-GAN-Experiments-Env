@@ -268,7 +268,7 @@ class OneShotAug():
 			res.append(torch.argmax(self.net(inputs)))
 		return res
 	
-	def evaluate(self, dataset, num_classes=5, num_samples=1000):
+	def evaluate(self, dataset, num_classes=5, num_samples=100000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
@@ -278,5 +278,3 @@ class OneShotAug():
 		
 		return total_correct / (num_samples * num_classes)
 
-# TODO: finish evaluation correctly like reptile
-# maybe redundant 20 inner loop because it the same image
