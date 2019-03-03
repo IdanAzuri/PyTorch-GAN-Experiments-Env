@@ -57,7 +57,7 @@ class ImageNetClass:
 		if transform is None:
 			self.transform = transforms.Compose(
 				[transforms.Resize(Config.data.image_size),
-					transforms.RandomResizedCrop(Config.data.image_size),
+					# transforms.RandomResizedCrop(Config.data.image_size),
 				 # transforms.RandomHorizontalFlip(),
 				 transforms.ToTensor(),
 				 transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
