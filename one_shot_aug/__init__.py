@@ -17,7 +17,7 @@ from torch.optim import lr_scheduler
 from utils import saving_config
 
 from . import utils
-outerstepsize0 = 0.1 # stepsize of outer optimization, i.e., meta-optimization
+meta_step_size = 0.1 # stepsize of outer optimization, i.e., meta-optimization
 
 
 class OneShotAug():
@@ -131,7 +131,8 @@ class OneShotAug():
 		# top1 = AverageMeter()
 		# top5 = AverageMeter()
 		end = time.time()
-		weights_before = deepcopy(self.net.state_dict())
+		weights_original = deepcopy(self.net.state_dict())
+		new_weights = []
 		for _ in range(self.meta_batch_size):
 			mini_data_set= _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
 			mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
@@ -162,12 +163,19 @@ class OneShotAug():
 				self.classifier_optimizer.zero_grad()
 				loss.backward()
 				self.classifier_optimizer.step()
-		weights_after = self.net.state_dict()
-		outerstepsize = outerstepsize0 * (1 - self.meta_step_count / Config.train.meta_iters) # linear schedule
-		#interpolate vars
+				new_weights.append(deepcopy(self.net.state_dict()))
+				self.net.load_state_dict({ name: weights_original[name] for name in weights_original })
+		
+		ws = len(new_weights)
+		fweights = { name : new_weights[0][name]/float(ws) for name in new_weights[0] }
+		for i in range(1, ws):
+			#cur_weights = deepcopy(model.state_dict())
+			for name in new_weights[i]:
+				fweights[name] += new_weights[i][name]/float(ws)
+		
 		self.net.load_state_dict({name :
-			                          weights_before[name] + (weights_after[name] - weights_before[name]) * outerstepsize
-		                          for name in weights_before})
+			                       weights_original[name] + ((fweights[name] - weights_original[name]) * meta_step_size) for name in weights_original})
+
 
 		# Save model parameters
 		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
