@@ -218,7 +218,7 @@ class OneShotAug():
 		# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
 		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
-		num_correct = sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)])
+		num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
 		
 		# self.prev_meta_step_count = step_count
 		self.net.load_state_dict(old_model_state)  # load back model's weights
@@ -271,15 +271,15 @@ class OneShotAug():
 			res.append(torch.argmax(self.net(inputs)))
 		return res
 	
-	def evaluate(self, dataset, num_classes=5, num_samples=10000):
+	def evaluate(self, dataset, num_classes=5, num_samples=1000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
-		total_correct = 0
+		total_correct = 0.
 		for _ in range(num_samples):
 			total_correct += self.evaluate_model(dataset, mode="total_test")
 		
-		return total_correct.item() / (num_samples * num_classes)
+		return total_correct / (num_samples * num_classes)
 
 # TODO: finish evaluation correctly like reptile
 # maybe redundant 20 inner loop because it the same image
