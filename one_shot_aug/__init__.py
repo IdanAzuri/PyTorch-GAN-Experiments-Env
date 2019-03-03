@@ -237,7 +237,7 @@ class OneShotAug():
 		return evaluation
 	
 	def build_criterion(self):
-		return torch.nn.CrossEntropyLoss().to(self.device)
+		return torch.nn.NLLLoss().to(self.device)
 	
 	
 	def build_optimizers(self, classifier):
