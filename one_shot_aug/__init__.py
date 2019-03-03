@@ -6,18 +6,19 @@ from copy import deepcopy
 import numpy as np
 import torch
 from hbconfig import Config
+from torch.autograd import Variable
+from torch.backends import cudnn
+from torch.optim import lr_scheduler
+
 from logger import Logger
 from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
-from progress.bar import Bar
-from torch.autograd import Variable
-from torch.backends import cudnn
-from torch.optim import lr_scheduler
 from utils import saving_config
-
 from . import utils
-meta_step_size = 0.1 # stepsize of outer optimization, i.e., meta-optimization
+
+
+meta_step_size = 0.1  # stepsize of outer optimization, i.e., meta-optimization
 
 
 class OneShotAug():
@@ -79,7 +80,6 @@ class OneShotAug():
 		print('Total params: %.2fK' % (sum(p.numel() for p in self.net.parameters()) / 1000.0))
 		best_model_wts = deepcopy(self.net.state_dict())
 		while True:
-			# weights_before = deepcopy(self.net.state_dict())
 			self.meta_step_count = self.prev_meta_step_count + 1  # init value
 			self.prev_meta_step_count = self.meta_step_count
 			# training
@@ -102,24 +102,23 @@ class OneShotAug():
 					train_acc_eval = float(train_num_correct) / self.num_classes
 					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
 					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}| accuracy_valid:{valid_acc_eval}")
-
-					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval, valid_acc_eval])
-					# deep copy the model
-					# print(f"step {self.meta_step_count}:_loss{validation_loss}")
+					
+					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval,
+					                    valid_acc_eval])  # deep copy the model  # print(f"step {self.meta_step_count}:_loss{validation_loss}")
 				# Interpolate between current weights and trained weights from this task
 				# I.e. (weights_before - weights_after) is the meta-gradient
 				
-					# if validation_loss < best_loss:
-					# 	best_loss = validation_loss
-					# 	best_model_wts = deepcopy(self.classifier.state_dict())
-			
-				if self.meta_step_count % 10000 == 0:
-					torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
-					print('save!')
+				# if validation_loss < best_loss:
+				# 	best_loss = validation_loss
+				# 	best_model_wts = deepcopy(self.classifier.state_dict())
+				
+				# if self.meta_step_count % 10000 == 0:
+				# 	torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
+				# 	print('save!')
 				
 				# update learning rate
 				
-				self.exp_lr_scheduler.step()
+				# self.exp_lr_scheduler.step()
 				if self.meta_step_count >= Config.train.meta_iters:
 					self.predict(self.loss_criterion)
 					sys.exit()
@@ -134,7 +133,7 @@ class OneShotAug():
 		weights_original = deepcopy(self.net.state_dict())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
-			mini_data_set= _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+			mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
 			mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 			
 			for batch_idx, batch in enumerate(mini_train_loader):
@@ -164,24 +163,22 @@ class OneShotAug():
 				loss.backward()
 				self.classifier_optimizer.step()
 				new_weights.append(deepcopy(self.net.state_dict()))
-				self.net.load_state_dict({ name: weights_original[name] for name in weights_original })
+				self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		
 		ws = len(new_weights)
-		fweights = { name : new_weights[0][name]/float(ws) for name in new_weights[0] }
+		fweights = {name: new_weights[0][name] / float(ws) for name in new_weights[0]}
 		for i in range(1, ws):
-			#cur_weights = deepcopy(model.state_dict())
+			# cur_weights = deepcopy(model.state_dict())
 			for name in new_weights[i]:
-				fweights[name] += new_weights[i][name]/float(ws)
+				fweights[name] += new_weights[i][name] / float(ws)
 		
-		self.net.load_state_dict({name :
-			                       weights_original[name] + ((fweights[name] - weights_original[name]) * meta_step_size) for name in weights_original})
-
-
+		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * meta_step_size) for name in weights_original})
+		
 		# Save model parameters
 		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(self.meta_step_count, self.model_path, self.net, self.classifier_optimizer)
 		
-		return #losses.avg, top1.avg
+		return  # losses.avg, top1.avg
 	
 	def evaluate_model(self, dataset, mode="valid"):
 		self.net.eval()
@@ -191,8 +188,8 @@ class OneShotAug():
 		
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
-		mini_batches = _mini_batches(train_set,  Config.eval.eval_inner_iters, Config.eval.eval_inner_iters , self.replacement)
-		#train on mini batches of the test set
+		mini_batches = _mini_batches(train_set, Config.eval.eval_inner_iters, Config.eval.eval_inner_iters, self.replacement)
+		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
 			# step_count = self.prev_meta_step_count + 1  # init value
@@ -206,8 +203,7 @@ class OneShotAug():
 			
 			# compute output
 			outputs = self.net(inputs)
-			loss = self.loss_criterion(outputs, labels)
-			# measure accuracy and record loss
+			loss = self.loss_criterion(outputs, labels)  # measure accuracy and record loss
 		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 		# losses.update(loss.data.item(), inputs.size(0))
 		# top1.update(prec1.item(), inputs.size(0))
@@ -242,6 +238,7 @@ class OneShotAug():
 	
 	def build_criterion(self):
 		return torch.nn.CrossEntropyLoss().to(self.device)
+	
 	
 	def build_optimizers(self, classifier):
 		
