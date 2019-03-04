@@ -78,12 +78,13 @@ class OneShotAug():
 				print("Using ", torch.cuda.device_count(), " GPUs!")
 			cudnn.benchmark = True
 		print('Total params: %.2fK' % (sum(p.numel() for p in self.net.parameters()) / 1000.0))
-		best_model_wts = deepcopy(self.net.state_dict())
 		while True:
 			self.meta_step_count = self.prev_meta_step_count + 1  # init value
 			self.prev_meta_step_count = self.meta_step_count
 			# training
 			self._train_step(train_loader)
+			state = self.classifier_optimizer.state_dict()  # save optimizer state
+			
 			# validation
 			if self.meta_step_count % 10 == 0:
 				# Step Verbose & Tensorboard Summary
@@ -102,7 +103,8 @@ class OneShotAug():
 					train_acc_eval = float(train_num_correct) / self.num_classes
 					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
 					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}| accuracy_valid:{valid_acc_eval}")
-					
+					#loading back optimizer state
+					self.classifier_optimizer.load_state_dict(state)
 					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval,
 					                    valid_acc_eval])  # deep copy the model  # print(f"step {self.meta_step_count}:_loss{validation_loss}")
 				# Interpolate between current weights and trained weights from this task
@@ -215,7 +217,6 @@ class OneShotAug():
 		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
-		print(num_correct)
 		# self.prev_meta_step_count = step_count
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
@@ -241,7 +242,6 @@ class OneShotAug():
 	
 	
 	def build_optimizers(self, classifier):
-		
 		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)
 		
 		return classifier_optimizer
