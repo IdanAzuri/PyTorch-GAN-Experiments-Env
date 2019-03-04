@@ -256,9 +256,7 @@ class OneShotAug():
 		if self._transductive:
 			inputs, labels = zip(*test_set)
 			inputs = Variable(torch.stack(inputs)).cpu()
-			num_correct += np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1)[-1] == labels
-			if self.use_cuda:
-				pass
+			num_correct += sum(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1) == labels)
 			return num_correct
 		res = []
 		_, labels = zip(*test_set)
