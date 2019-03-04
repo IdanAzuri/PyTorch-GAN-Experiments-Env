@@ -27,7 +27,7 @@ class OneShotAug():
 	# os.makedirs('images', exist_ok=True)
 	
 	def __init__(self):
-		self._transductive = True
+		self._transductive = False
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
