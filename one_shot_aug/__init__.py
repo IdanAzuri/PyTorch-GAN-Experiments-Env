@@ -181,7 +181,6 @@ class OneShotAug():
 		return  # losses.avg, top1.avg
 	
 	def evaluate_model(self, dataset, mode="valid"):
-		self.net.eval()
 		losses = AverageMeter()
 		top1 = AverageMeter()
 		top5 = AverageMeter()
@@ -190,6 +189,7 @@ class OneShotAug():
 		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.eval_inner_iters, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
+		self.net.train()
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
 			# step_count = self.prev_meta_step_count + 1  # init value
@@ -215,7 +215,7 @@ class OneShotAug():
 		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
 		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
-		
+		print(num_correct)
 		# self.prev_meta_step_count = step_count
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
@@ -251,6 +251,7 @@ class OneShotAug():
 			self.tensorboard.scalar_summary(tag, value, step)
 	
 	def _test_predictions(self, train_set, test_set):
+		self.net.eval()
 		if self._transductive:
 			inputs, _ = zip(*test_set)
 			if self.use_cuda:
