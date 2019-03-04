@@ -27,7 +27,7 @@ class OneShotAug():
 	# os.makedirs('images', exist_ok=True)
 	
 	def __init__(self):
-		self._transductive = False
+		self._transductive = Config.model.transductive
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
@@ -215,8 +215,8 @@ class OneShotAug():
 		# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
 		# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
 		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
-		test_preds = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
-		num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
+		num_correct = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
+		# num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
 		# self.prev_meta_step_count = step_count
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		if mode == "total_test":
@@ -252,24 +252,29 @@ class OneShotAug():
 	
 	def _test_predictions(self, train_set, test_set):
 		self.net.eval()
+		num_correct=0
 		if self._transductive:
-			inputs, _ = zip(*test_set)
-			inputs = Variable(torch.stack(inputs)).cuda()
+			inputs, labels = zip(*test_set)
+			inputs = Variable(torch.stack(inputs)).cpu()
+			num_correct += np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1)[-1] == labels
 			if self.use_cuda:
-				inputs.cuda()
-			return self.net(inputs)
+				pass
+			return num_correct
 		res = []
+		_, labels = zip(*test_set)
 		for test_sample in test_set:
 			inputs, _ = zip(*train_set)
 			if self.use_cuda:
-				inputs = Variable(torch.stack(inputs)).cuda()
-				inputs += Variable(torch.stack((test_sample[0],))).cuda()
+				inputs = Variable(torch.stack(inputs)).cpu()
+				inputs += Variable(torch.stack((test_sample[0],))).cpu()
 			else:
 				inputs = Variable(torch.stack(inputs))
 				inputs += Variable(torch.stack((test_sample[0],)))
-			res.append(torch.argmax(self.net(inputs)))
-		return res
-	
+			res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1)[-1])
+		num_correct += count_correct(res, labels)
+			# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
+		return num_correct
+
 	def evaluate(self, dataset, num_classes=5, num_samples=100000):
 		"""
 		Evaluate a model on a dataset. Final test!
@@ -279,4 +284,8 @@ class OneShotAug():
 			total_correct += self.evaluate_model(dataset, mode="total_test")
 		
 		return total_correct / (num_samples * num_classes)
-
+	
+def count_correct(pred, target):
+	''' count number of correct classification predictions in a batch '''
+	pairs = [int(x==y) for (x, y) in zip(pred, target)]
+	return sum(pairs)
