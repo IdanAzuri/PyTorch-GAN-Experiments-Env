@@ -206,6 +206,9 @@ class OneShotAug():
 			# compute output
 			outputs = self.net(inputs)
 			loss = self.loss_criterion(outputs, labels)  # measure accuracy and record loss
+			self.classifier_optimizer.zero_grad()
+			loss.backward()
+			self.classifier_optimizer.step()
 		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 		# losses.update(loss.data.item(), inputs.size(0))
 		# top1.update(prec1.item(), inputs.size(0))
@@ -273,7 +276,7 @@ class OneShotAug():
 			# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
 		return num_correct
 
-	def evaluate(self, dataset, num_classes=5, num_samples=100000):
+	def evaluate(self, dataset, num_classes=5, num_samples=10000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
