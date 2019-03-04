@@ -19,6 +19,7 @@ model:
     conv2: 32
     conv3: 64
     conv4: 128
+    transductive: False
     use_dropout: True
     dropout: 0.3
     use_augmentation: False

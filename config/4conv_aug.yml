@@ -13,11 +13,11 @@ model:
     type: "conv"
     pretrained: False
     seed: 222
-    arch: small_cnnn #resnet,densenet
+    arch: small_cnn #resnet,densenet
     base_width: 4 #resnet params
     cardinality: 32 # resnet params
     depth: 29
-    
+    transductive: False
     z_dim: 100  # Random noise dimension coming into generator, per output vector
     real_dim: 1024  #$image_size * image_size
     filters: 64
@@ -52,7 +52,8 @@ train:
     eval_inner_iters: 50
     replacement: False # sample with replacement.
     meta_batch_size: 1 # how many inner-loops to run
-    meta_iters: 400000 # epochs
+    meta_iters: 1000000 # epochs
+    train_shot: 15
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.

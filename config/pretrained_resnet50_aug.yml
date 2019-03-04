@@ -15,6 +15,7 @@ model:
     seed: 222
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
+    transductive: False
 #    base_width: 4 #resnet params
 #    cardinality: 32 # resnet params
 #    depth: 29
@@ -27,8 +28,9 @@ model:
 #    total_test_classes: 15 #miniimagenet
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
+    train_shot: 15
 train:
-    model_dir: "outputs/pretrainedresnet_50_aug"
+    model_dir: "outputs/pretrained_resnet_50_aug"
     batch_size: 64
     shuffle: true
     
@@ -40,11 +42,11 @@ train:
     save_checkpoints_steps: 10000
     verbose_step_count: 50
     show_progrees_bar: False
-    inner_batch_size: 5 # batch size for every inner-loop training iteration.
+    inner_batch_size: 8 # batch size for every inner-loop training iteration.
     inner_iters: 20 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
     meta_batch_size: 1 # how many inner-loops to run
-    meta_iters: 400000 # epochs
+    meta_iters: 1000000 # epochs
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.

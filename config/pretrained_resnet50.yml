@@ -15,6 +15,7 @@ model:
     seed: 222
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
+    transductive: False
 #    base_width: 4 #resnet params
 #    cardinality: 32 # resnet params
 #    depth: 29
@@ -27,8 +28,9 @@ model:
 #    total_test_classes: 15 #miniimagenet
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
+    train_shot: 15
 train:
-    model_dir: "outputs/pretrainedresnet_50"
+    model_dir: "outputs/pretrained_resnet_50"
     batch_size: 64
     shuffle: true
     
