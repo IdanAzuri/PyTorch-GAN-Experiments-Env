@@ -39,7 +39,7 @@ if __name__ == '__main__':
 		print("Config Description")
 		for key, value in Config.description.items():
 			print(f" - {key}: {value}")
-
+	random.seed(Config.model.seed)
 	torch.manual_seed(Config.model.seed)
 	torch.cuda.manual_seed_all(Config.model.seed)
 	np.random.seed(Config.model.seed)
