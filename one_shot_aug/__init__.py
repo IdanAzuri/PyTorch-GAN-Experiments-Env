@@ -254,6 +254,7 @@ class OneShotAug():
 		self.net.eval()
 		if self._transductive:
 			inputs, _ = zip(*test_set)
+			inputs = Variable(torch.stack(inputs)).cuda()
 			if self.use_cuda:
 				inputs.cuda()
 			return self.net(inputs)
