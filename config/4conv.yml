@@ -31,8 +31,9 @@ model:
 #    total_test_classes: 15 #miniimagenet
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
+    train_shot: 15
 train:
-    model_dir: "outputs/4conv_b"
+    model_dir: "outputs/4conv_train_shot15"
     batch_size: 64
     shuffle: true
     

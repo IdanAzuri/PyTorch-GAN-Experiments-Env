@@ -33,6 +33,7 @@ class OneShotAug():
 		self.tensorboard = utils.TensorBoard(Config.train.model_dir)
 		self.classifier_optimizer = None
 		self.num_classes = Config.model.n_classes
+		self.train_shot = Config.model.train_shot
 		self.num_shots = Config.model.num_smaples_in_shot
 		self.inner_batch_size = Config.train.inner_batch_size
 		self.inner_iters = Config.train.inner_iters
@@ -135,7 +136,7 @@ class OneShotAug():
 		weights_original = deepcopy(self.net.state_dict())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
-			mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.num_shots)
+			mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
 			mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 			
 			for batch_idx, batch in enumerate(mini_train_loader):
