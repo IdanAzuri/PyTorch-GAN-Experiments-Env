@@ -16,16 +16,13 @@ model:
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
     transductive: False
-#    base_width: 4 #resnet params
-#    cardinality: 32 # resnet params
-#    depth: 29
-    use_dropout: True
+    use_dropout: False
     dropout: 0.3
-    use_augmentation: True
+    use_augmentation: False
     dataset: miniimagenet
-#    total_train_classes: 65 #miniimagenet
-#    total_valid_classes: 20 #miniimagenet
-#    total_test_classes: 15 #miniimagenet
+    #    total_train_classes: 65 #miniimagenet
+    #    total_valid_classes: 20 #miniimagenet
+    #    total_test_classes: 15 #miniimagenet
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
     train_shot: 15
@@ -34,16 +31,16 @@ train:
     batch_size: 64
     shuffle: true
     
-    learning_rate: 0.0002  # 2e-4
+    learning_rate: 0.0001
     optim_betas:
         - 0.5
         - 0.999
-
+    
     save_checkpoints_steps: 1000
     verbose_step_count: 50
     show_progrees_bar: False
     inner_batch_size: 8 # batch size for every inner-loop training iteration.
-    inner_iters: 10 #n umber of inner-loop iterations.
+    inner_iters: 20 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
     meta_batch_size: 1 # how many inner-loops to run
     meta_iters: 100000 # epochs
