@@ -39,9 +39,9 @@ train:
     batch_size: 64
     shuffle: true
     
-    learning_rate: 0.0002  # 2e-4
+    learning_rate: 0.0001  # 2e-4
     optim_betas:
-        - 0.5
+        - 0
         - 0.999
     
     save_checkpoints_steps: 1000

@@ -282,8 +282,10 @@ class OneShotAug():
 		Evaluate a model on a dataset. Final test!
 		"""
 		total_correct = 0.
-		for _ in range(num_samples):
+		for i in range(num_samples):
 			total_correct += self.evaluate_model(dataset, mode="total_test")
+			if i % 50 == 0:
+				print(f"eval: step:{i}, acc:{ total_correct / (i * num_classes)}")
 		
 		return total_correct / (num_samples * num_classes)
 	
