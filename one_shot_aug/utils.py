@@ -29,6 +29,7 @@ def load_saved_model(path, model, optimizer):
 			new_state_dict[name] = v
 		
 		model.load_state_dict(new_state_dict)
+		optimizer.load_state_dict(checkpoint['optimizer'])
 	except:
 	# else:
 		model.load_state_dict(checkpoint['model'])

@@ -133,7 +133,7 @@ class GAN:
 	def evaluate_model(self):
 		pass
 	
-	def predict(self):
+	def predict(self,optimizers):
 		# Load model
 		self.prev_step_count, self.generator, _ = utils.load_saved_model(
 			self.G_PATH, self.generator, None)

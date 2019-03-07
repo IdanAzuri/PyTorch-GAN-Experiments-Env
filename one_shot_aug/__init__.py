@@ -104,7 +104,7 @@ class OneShotAug():
 					train_acc_eval = float(train_num_correct) / self.num_classes
 					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
 					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}| accuracy_valid:{valid_acc_eval}")
-					#loading back optimizer state
+					# loading back optimizer state
 					self.classifier_optimizer.load_state_dict(state)
 					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval,
 					                    valid_acc_eval])  # deep copy the model  # print(f"step {self.meta_step_count}:_loss{validation_loss}")
@@ -195,9 +195,6 @@ class OneShotAug():
 		self.net.train()
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
-			# step_count = self.prev_meta_step_count + 1  # init value
-			# measure data loading time
-			
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
@@ -210,6 +207,8 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
+		num_correct = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
+		self.net.load_state_dict(old_model_state)  # load back model's weights
 		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 		# losses.update(loss.data.item(), inputs.size(0))
 		# top1.update(prec1.item(), inputs.size(0))
@@ -219,16 +218,15 @@ class OneShotAug():
 		# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
 		# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
 		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
-		num_correct = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		# num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
 		# self.prev_meta_step_count = step_count
-		self.net.load_state_dict(old_model_state)  # load back model's weights
-		if mode == "total_test":
-			return num_correct
+
 		return num_correct
 	
 	def predict(self, criterion):
 		print("Predicting on test set...")
+		if self.classifier_optimizer is None:
+			self.classifier_optimizer = self.build_optimizers(self.net)
 		self.loss_criterion = criterion
 		
 		# Load model
@@ -244,7 +242,6 @@ class OneShotAug():
 	def build_criterion(self):
 		return torch.nn.CrossEntropyLoss().to(self.device)
 	
-	
 	def build_optimizers(self, classifier):
 		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)
 		
@@ -256,7 +253,7 @@ class OneShotAug():
 	
 	def _test_predictions(self, train_set, test_set):
 		self.net.eval()
-		num_correct=0
+		num_correct = 0
 		if self._transductive:
 			inputs, labels = zip(*test_set)
 			inputs = Variable(torch.stack(inputs)).cpu()
@@ -274,9 +271,9 @@ class OneShotAug():
 				inputs += Variable(torch.stack((test_sample[0],)))
 			res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1)[-1])
 		num_correct += count_correct(res, labels)
-			# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
+		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
 		return num_correct
-
+	
 	def evaluate(self, dataset, num_classes=5, num_samples=10000):
 		"""
 		Evaluate a model on a dataset. Final test!
@@ -285,11 +282,16 @@ class OneShotAug():
 		for i in range(num_samples):
 			total_correct += self.evaluate_model(dataset, mode="total_test")
 			if i % 50 == 1:
-				print(f"eval: step:{i}, acc:{ total_correct / (i * num_classes)}")
+				print(f"eval: step:{i}, acc:{total_correct / (i * num_classes)}")
+				acc_all = np.asarray(total_correct*100 / (i * num_classes))
+				acc_mean = np.mean(acc_all)
+				acc_std = np.std(acc_all)
+				print('%d Test Acc = %4.2f%% +- %4.2f%%' % (i, acc_mean, 1.96 * acc_std / np.sqrt(i)))
 		
 		return total_correct / (num_samples * num_classes)
-	
+
+
 def count_correct(pred, target):
 	''' count number of correct classification predictions in a batch '''
-	pairs = [int(x==y) for (x, y) in zip(pred, target)]
+	pairs = [int(x == y) for (x, y) in zip(pred, target)]
 	return sum(pairs)
