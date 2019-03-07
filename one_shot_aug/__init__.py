@@ -184,6 +184,7 @@ class OneShotAug():
 		return  # losses.avg, top1.avg
 	
 	def evaluate_model(self, dataset, mode="valid"):
+		self.net.train()
 		losses = AverageMeter()
 		top1 = AverageMeter()
 		top5 = AverageMeter()
@@ -192,7 +193,6 @@ class OneShotAug():
 		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.eval_inner_iters, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
-		self.net.train()
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
 			inputs = Variable(torch.stack(inputs))
@@ -225,6 +225,8 @@ class OneShotAug():
 	
 	def predict(self, criterion):
 		print("Predicting on test set...")
+		if self.use_cuda:
+			self.net.cuda()
 		if self.classifier_optimizer is None:
 			self.classifier_optimizer = self.build_optimizers(self.net)
 		self.loss_criterion = criterion
