@@ -258,7 +258,7 @@ class OneShotAug():
 		num_correct = 0
 		if self._transductive:
 			inputs, labels = zip(*test_set)
-			inputs = Variable(torch.stack(inputs)).cpu()
+			inputs = Variable(torch.stack(inputs))
 			num_correct += sum(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1) == labels)
 			return num_correct
 		res = []
@@ -266,11 +266,12 @@ class OneShotAug():
 		for test_sample in test_set:
 			inputs, _ = zip(*train_set)
 			if self.use_cuda:
-				inputs = Variable(torch.stack(inputs)).cpu()
-				inputs += Variable(torch.stack((test_sample[0],))).cpu()
+				inputs = Variable(torch.stack(inputs)).cuda()
+				inputs += Variable(torch.stack((test_sample[0],))).cuda()
 			else:
 				inputs = Variable(torch.stack(inputs))
 				inputs += Variable(torch.stack((test_sample[0],)))
+			a=self.net(inputs)
 			res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1)[-1])
 		num_correct += count_correct(res, labels)
 		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))

@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --mem=20g
-#SBATCH -c 10
+#SBATCH --mem=4g
+#SBATCH -c 8
 #SBATCH --gres=gpu:2
-#SBATCH --time=2-20
+#SBATCH --time=1-20
 #SBATCH --mail-user=idan.azuri@mail.huji.ac.il
 #SBATCH --mail-type=END,FAIL,TIME_LIMIT
-#SBATCH --array=0-5%6
+#SBATCH --array=0-6%7
 
 
 module load torch
@@ -19,11 +19,11 @@ source /cs/labs/daphna/idan.azuri/venv3.6/bin/activate
 
 
 if [ $SLURM_ARRAY_TASK_ID -eq 0 ]; then
-python3 main.py --config pretrained_resnet50
+python3 main.py --config 4conv
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-python3 main.py --config pretrained_resnet50_aug
+python3 main.py --config 4conv_transductive
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 2 ]; then
@@ -31,16 +31,20 @@ python3 main.py --config resnet50
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 3 ]; then
-python3 main.py --config resnet50_aug
+python3 main.py --config pretrained_resnet50
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 4 ]; then
-python3 main.py --config 4conv
+python3 main.py --config resnet50_aug
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 5 ]; then
-python3 main.py --config 4conv_aug
+python3 main.py --config pretrained_resnet50_aug
 fi
+
+#if [ $SLURM_ARRAY_TASK_ID -eq 6 ]; then
+#python3 main.py --config 4conv_aug
+#fi
 
 #python3 main.py --config pretrained_vgg19_bn_${SLURM_ARRAY_TASK_ID}
 #python3 main.py --config pretrained_resnet50_${SLURM_ARRAY_TASK_ID}
