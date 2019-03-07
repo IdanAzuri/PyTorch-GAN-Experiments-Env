@@ -228,6 +228,8 @@ class OneShotAug():
 		if self.use_cuda:
 			self.net.cuda()
 		if self.classifier_optimizer is None:
+			if self.use_cuda:
+				self.net = self.net.cuda()
 			self.classifier_optimizer = self.build_optimizers(self.net)
 		self.loss_criterion = criterion
 		
