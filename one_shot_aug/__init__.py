@@ -256,24 +256,23 @@ class OneShotAug():
 	def _test_predictions(self, train_set, test_set):
 		self.net.eval()
 		num_correct = 0
+		test_inputs, test_labels = zip(*test_set)
 		if self._transductive:
-			inputs, labels = zip(*test_set)
-			inputs = Variable(torch.stack(inputs))
-			num_correct += sum(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1) == labels)
+			test_inputs = Variable(torch.stack(test_inputs))
+			num_correct += sum(np.argmax(self.net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
 			return num_correct
 		res = []
-		_, labels = zip(*test_set)
 		for test_sample in test_set:
-			inputs, _ = zip(*train_set)
+			train_inputs, train_labels = zip(*train_set)
 			if self.use_cuda:
-				inputs = Variable(torch.stack(inputs)).cuda()
-				inputs += Variable(torch.stack((test_sample[0],))).cuda()
+				train_inputs = Variable(torch.stack(train_inputs)).cuda()
+				train_inputs += Variable(torch.stack((test_sample[0],))).cuda()
 			else:
-				inputs = Variable(torch.stack(inputs))
-				inputs += Variable(torch.stack((test_sample[0],)))
-			a=self.net(inputs)
-			res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1)[-1])
-		num_correct += count_correct(res, labels)
+				train_inputs = Variable(torch.stack(train_inputs))
+				train_inputs += Variable(torch.stack((test_sample[0],)))
+			argmax_arr = np.argmax(self.net(train_inputs).cpu().detach().numpy(), axis=1)
+			res.append(argmax_arr[-1])
+		num_correct += count_correct(res, test_labels)
 		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
 		return num_correct
 	

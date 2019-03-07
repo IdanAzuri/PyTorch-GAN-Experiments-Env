@@ -99,8 +99,8 @@ class MiniImageNetModel(nn.Module):
 		self.layer2 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer3 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer4 = _conv_layer(self.n_filters, self.n_filters, 3)
-		# self.out = nn.Sequential(nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes), nn.Softmax())
-		self.out = nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes)
+		self.out = nn.Sequential(nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes),  nn.LogSoftmax(1))
+		# self.out = nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes)
 		
 		# Initialize layers
 		self.weights_init(self.layer1)

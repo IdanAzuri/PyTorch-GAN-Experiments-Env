@@ -9,9 +9,10 @@ sub-directory per WordNet ID.
 import os
 import random
 
-from PIL import Image
+from PIL import Image, ImageFile
 from hbconfig import Config
 from torchvision.transforms import transforms
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def read_dataset_test(data_dir, transforms=None):
