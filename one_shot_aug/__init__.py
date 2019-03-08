@@ -261,9 +261,9 @@ class OneShotAug():
 			if self.use_cuda:
 				test_inputs = Variable(torch.stack(test_inputs)).cuda()
 				num_correct += sum(np.argmax(self.net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
-		else:
-			test_inputs = Variable(torch.stack(test_inputs))
-			num_correct += sum(np.argmax(self.net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
+			else:
+				test_inputs = Variable(torch.stack(test_inputs))
+				num_correct += sum(np.argmax(self.net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
 			return num_correct, len(test_labels)
 		res = []
 		for test_sample in test_set:
