@@ -183,7 +183,7 @@ class OneShotAug():
 		
 		return  # losses.avg, top1.avg
 	
-	def evaluate_model(self, dataset, mode="valid"):
+	def evaluate_model(self, dataset, mode="total_test"):
 		self.net.train()
 		losses = AverageMeter()
 		top1 = AverageMeter()
@@ -207,7 +207,7 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
-		num_correct = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
+		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
 		# losses.update(loss.data.item(), inputs.size(0))
@@ -220,7 +220,8 @@ class OneShotAug():
 		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
 		# num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
 		# self.prev_meta_step_count = step_count
-
+		if mode == "total_test":
+			return num_correct, len_set
 		return num_correct
 	
 	def predict(self, criterion):
@@ -228,16 +229,13 @@ class OneShotAug():
 		if self.use_cuda:
 			self.net.cuda()
 		if self.classifier_optimizer is None:
-			if self.use_cuda:
-				self.net = self.net.cuda()
 			self.classifier_optimizer = self.build_optimizers(self.net)
 		self.loss_criterion = criterion
 		
 		# Load model
 		self.prev_meta_step_count, self.net, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.net, self.classifier_optimizer)
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
-		if self.use_cuda:
-			self.net.cuda()
+		
 		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
 		evaluation = self.evaluate(test_loader)
 		print(f"Total score: {evaluation}")
@@ -260,9 +258,13 @@ class OneShotAug():
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
 		if self._transductive:
+			if self.use_cuda:
+				test_inputs = Variable(torch.stack(test_inputs)).cuda()
+				num_correct += sum(np.argmax(self.net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
+		else:
 			test_inputs = Variable(torch.stack(test_inputs))
 			num_correct += sum(np.argmax(self.net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
-			return num_correct
+			return num_correct, len(test_labels)
 		res = []
 		for test_sample in test_set:
 			train_inputs, train_labels = zip(*train_set)
@@ -276,23 +278,24 @@ class OneShotAug():
 			res.append(argmax_arr[-1])
 		num_correct += count_correct(res, test_labels)
 		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
-		return num_correct
+		return num_correct, len(res)
 	
 	def evaluate(self, dataset, num_classes=5, num_samples=10000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
-		total_correct = 0.
+		acc_all = []
 		for i in range(num_samples):
-			total_correct += self.evaluate_model(dataset, mode="total_test")
-			if i % 50 == 1:
-				print(f"eval: step:{i}, acc:{total_correct / (i * num_classes)}")
-				acc_all = np.asarray(total_correct*100 / (i * num_classes))
-				acc_mean = np.mean(acc_all)
-				acc_std = np.std(acc_all)
-				print('%d Test Acc = %4.2f%% +- %4.2f%%' % (i, acc_mean, 1.96 * acc_std / np.sqrt(i)))
+			correct_this, count_this = self.evaluate_model(dataset, mode="total_test")
+			acc_all.append(correct_this / count_this * 100)
+			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")
+			if i % 50 == 5:
+				acc_arr = np.asarray(acc_all)
+				acc_mean = np.mean(acc_arr)
+				acc_std = np.std(acc_arr)
+				print('Step:%d | Test Acc:%4.2f%% +-%4.2f%%' % (i, acc_mean, 1.96 * acc_std / np.sqrt(i)))
 		
-		return total_correct / (num_samples * num_classes)
+		return acc_mean
 
 
 def count_correct(pred, target):
