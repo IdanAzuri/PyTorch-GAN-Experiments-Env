@@ -90,18 +90,18 @@ class OneShotAug():
 			if self.meta_step_count % 10 == 0:
 				# Step Verbose & Tensorboard Summary
 				if self.meta_step_count % Config.train.verbose_step_count == 0:
-					validation_num_correct = self.evaluate_model(validation_loader)
+					validation_num_correct, valid_count = self.evaluate_model(validation_loader)
 					# self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
 					# self._add_summary(self.meta_step_count, {"top1_acc_valid": validation_acc})
 					# valid_acc_eval = validation_num_correct / self.num_classes
-					valid_acc_eval = float(validation_num_correct) / self.num_classes
+					valid_acc_eval = float(validation_num_correct) / valid_count
 					self._add_summary(self.meta_step_count, {"accuracy_valid": valid_acc_eval})
 					
-					train_num_correct = self.evaluate_model(train_loader)
+					train_num_correct,train_count = self.evaluate_model(train_loader)
 					# self._add_summary(self.meta_step_count, {"loss_train": train_loss})
 					# self._add_summary(self.meta_step_count, {"top1_acc_train": train_acc})
 					# train_acc_eval = train_num_correct / self.num_classes
-					train_acc_eval = float(train_num_correct) / self.num_classes
+					train_acc_eval = float(train_num_correct) / train_count
 					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
 					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}| accuracy_valid:{valid_acc_eval}")
 					# loading back optimizer state
