@@ -166,7 +166,7 @@ class OneShotAug():
 				loss.backward()
 				self.classifier_optimizer.step()
 				new_weights.append(deepcopy(self.net.state_dict()))
-				self.net.load_state_dict({name: weights_original[name] for name in weights_original})
+			self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		
 		ws = len(new_weights)
 		fweights = {name: new_weights[0][name] / float(ws) for name in new_weights[0]}
@@ -188,9 +188,28 @@ class OneShotAug():
 		losses = AverageMeter()
 		top1 = AverageMeter()
 		top5 = AverageMeter()
+		old_model_state, test_set, train_set = self.learn_for_eval(dataset)
+		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
+		self.net.load_state_dict(old_model_state)  # load back model's weights
 		
+		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
+		# losses.update(loss.data.item(), inputs.size(0))
+		# top1.update(prec1.item(), inputs.size(0))
+		# top5.update(prec5.item(), inputs.size(0))
+		# Step Verbose & Tensorboard Summary
+		# if step_count % Config.train.verbose_step_count == 0:
+		# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
+		# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
+		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
+		# num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
+		# self.prev_meta_step_count = step_count
+		if mode == "total_test":
+			return num_correct, len_set
+		return num_correct
+	
+	def learn_for_eval(self, dataset):
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
-		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
+		model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.eval_inner_iters, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
@@ -207,22 +226,7 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
-		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
-		self.net.load_state_dict(old_model_state)  # load back model's weights
-		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
-		# losses.update(loss.data.item(), inputs.size(0))
-		# top1.update(prec1.item(), inputs.size(0))
-		# top5.update(prec5.item(), inputs.size(0))
-		# Step Verbose & Tensorboard Summary
-		# if step_count % Config.train.verbose_step_count == 0:
-		# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
-		# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
-		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
-		# num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
-		# self.prev_meta_step_count = step_count
-		if mode == "total_test":
-			return num_correct, len_set
-		return num_correct
+		return model_state, test_set, train_set
 	
 	def predict(self, criterion):
 		print("Predicting on test set...")
