@@ -97,7 +97,7 @@ class OneShotAug():
 					valid_acc_eval = float(validation_num_correct) / valid_count
 					self._add_summary(self.meta_step_count, {"accuracy_valid": valid_acc_eval})
 					
-					train_num_correct,train_count = self.evaluate_model(train_loader)
+					train_num_correct, train_count = self.evaluate_model(train_loader)
 					# self._add_summary(self.meta_step_count, {"loss_train": train_loss})
 					# self._add_summary(self.meta_step_count, {"top1_acc_train": train_acc})
 					# train_acc_eval = train_num_correct / self.num_classes
@@ -128,54 +128,13 @@ class OneShotAug():
 	
 	def _train_step(self, train_loader):
 		self.net.train()
-		data_time = AverageMeter()
-		# losses = AverageMeter()
-		# top1 = AverageMeter()
-		# top5 = AverageMeter()
-		end = time.time()
 		weights_original = deepcopy(self.net.state_dict())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
-			mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
-			mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
-			
-			for batch_idx, batch in enumerate(mini_train_loader):
-				(inputs, labels) = zip(*batch)
-				self.meta_step_count = self.prev_meta_step_count + 1  # init value
-				# measure data loading time
-				data_time.update(time.time() - end)
-				
-				inputs = Variable(torch.stack(inputs))
-				labels = Variable(torch.from_numpy(np.array(labels)))
-				if self.use_cuda:
-					inputs = inputs.cuda()
-					labels = labels.cuda()
-				
-				# compute output
-				outputs = self.net(inputs)
-				loss = self.loss_criterion(outputs, labels)
-				
-				# # measure accuracy and record loss
-				# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
-				# losses.update(loss.data.item(), inputs.size(0))
-				# top1.update(prec1.item(), inputs.size(0))
-				# top5.update(prec5.item(), inputs.size(0))
-				
-				# compute gradient and do SGD step
-				self.classifier_optimizer.zero_grad()
-				loss.backward()
-				self.classifier_optimizer.step()
-				new_weights.append(deepcopy(self.net.state_dict()))
+			new_weights = self.inner_train(new_weights, train_loader)
 			self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		
-		ws = len(new_weights)
-		fweights = {name: new_weights[0][name] / float(ws) for name in new_weights[0]}
-		for i in range(1, ws):
-			# cur_weights = deepcopy(model.state_dict())
-			for name in new_weights[i]:
-				fweights[name] += new_weights[i][name] / float(ws)
-		
-		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * meta_step_size) for name in weights_original})
+		self.interpolate_new_weights(new_weights, weights_original)
 		
 		# Save model parameters
 		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
@@ -183,6 +142,38 @@ class OneShotAug():
 		
 		return  # losses.avg, top1.avg
 	
+	def interpolate_new_weights(self, new_weights, weights_original):
+		ws = len(new_weights)
+		fweights = {name: new_weights[0][name] / float(ws) for name in new_weights[0]}
+		for i in range(1, ws):
+			for name in new_weights[i]:
+				fweights[name] += new_weights[i][name] / float(ws)
+		frac_done = self.meta_step_count / Config.train.meta_iters
+		cur_meta_step_size = frac_done * meta_step_size + (1 - frac_done) * meta_step_size
+		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
+	
+	def inner_train(self, new_weights, train_loader):
+		mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
+		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
+		for batch_idx, batch in enumerate(mini_train_loader):
+			(inputs, labels) = zip(*batch)
+			self.meta_step_count = self.prev_meta_step_count + 1  # init value
+			inputs = Variable(torch.stack(inputs))
+			labels = Variable(torch.from_numpy(np.array(labels)))
+			if self.use_cuda:
+				inputs = inputs.cuda()
+				labels = labels.cuda()
+			
+			# compute output
+			outputs = self.net(inputs)
+			loss = self.loss_criterion(outputs, labels)
+			
+			# compute gradient and do SGD step
+			self.classifier_optimizer.zero_grad()
+			loss.backward()
+			self.classifier_optimizer.step()
+		new_weights.append(deepcopy(self.net.state_dict()))
+		return new_weights
 	def evaluate_model(self, dataset, mode="total_test"):
 		self.net.train()
 		losses = AverageMeter()

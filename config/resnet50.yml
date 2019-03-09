@@ -42,7 +42,7 @@ train:
     inner_batch_size: 8 # batch size for every inner-loop training iteration.
     inner_iters: 20 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
-    meta_batch_size: 1 # how many inner-loops to run
+    meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs
 eval:
     eval_inner_iters: 50

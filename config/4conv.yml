@@ -33,7 +33,7 @@ model:
     num_smaples_in_shot: 1 # number of examples per data class.
     train_shot: 15
 train:
-    model_dir: "outputs/4conv_train_shot15"
+    model_dir: "outputs/4conv"
     batch_size: 64
     shuffle: true
     
@@ -48,7 +48,7 @@ train:
     inner_batch_size: 8 # batch size for every inner-loop training iteration.
     inner_iters: 10 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
-    meta_batch_size: 1 # how many inner-loops to run
+    meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs
 eval:
     eval_inner_iters: 50
