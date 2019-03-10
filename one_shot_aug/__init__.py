@@ -160,12 +160,7 @@ class OneShotAug():
 		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_train_loader):
 			inputs, labels = zip(*batch)
-			# import matplotlib.pyplot as plt
-			#
-			# plt.figure()
-			# plt.imshow(inputs[0].reshape([84,84,3]))
-			# plt.show()  # display it)
-			show_image(inputs[1])
+			# show_image(inputs[1])
 		
 			self.meta_step_count = self.prev_meta_step_count + 1  # init value
 			inputs = Variable(torch.stack(inputs))

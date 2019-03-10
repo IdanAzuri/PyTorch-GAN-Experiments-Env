@@ -55,16 +55,7 @@ class ImageNetClass:
 	def __init__(self, dir_path, transform):
 		self.dir_path = dir_path
 		self._cache = {}
-		if transform is None:
-			self.transform = transforms.Compose(
-				[transforms.Resize(Config.data.image_size),
-					# transforms.RandomResizedCrop(Config.data.image_size),
-				 # transforms.RandomHorizontalFlip(),
-				 transforms.ToTensor(),
-				 transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-				 ])
-		else:
-			self.transform = transform
+		self.transform = transform
 	def __len__(self):
 			return len([f for f in os.listdir(self.dir_path) if f.endswith('.JPEG')])
 	def sample(self, num_images):
