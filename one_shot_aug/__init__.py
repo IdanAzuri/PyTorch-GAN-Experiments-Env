@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 import time
@@ -6,9 +7,11 @@ from copy import deepcopy
 import numpy as np
 import torch
 from hbconfig import Config
+from skimage.io import imshow
 from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.optim import lr_scheduler
+from torchvision.transforms import transforms
 
 from logger import Logger
 from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test
@@ -156,7 +159,14 @@ class OneShotAug():
 		mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
 		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_train_loader):
-			(inputs, labels) = zip(*batch)
+			inputs, labels = zip(*batch)
+			# import matplotlib.pyplot as plt
+			#
+			# plt.figure()
+			# plt.imshow(inputs[0].reshape([84,84,3]))
+			# plt.show()  # display it)
+			show_image(inputs[1])
+		
 			self.meta_step_count = self.prev_meta_step_count + 1  # init value
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
@@ -297,3 +307,16 @@ def count_correct(pred, target):
 	''' count number of correct classification predictions in a batch '''
 	pairs = [int(x == y) for (x, y) in zip(pred, target)]
 	return sum(pairs)
+# Show Image
+def show_image(image):
+	import matplotlib.pyplot as plt
+	# Convert image to numpy
+	image = image.numpy()
+	
+	# Un-normalize the image
+	# image[0] = image[0] * [0.229, 0.224, 0.225] +[0.485, 0.456, 0.406]
+	
+	# Print the image
+	plt.imshow(np.transpose(image, (1,2,0)), interpolation='nearest')
+	# plt.imshow(np.transpose(image, (1, 2, 0)))
+	plt.show()
