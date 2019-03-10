@@ -142,6 +142,7 @@ class OneShotAug():
 		mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
 		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_train_loader):
+			last_backup = deepcopy(self.net.state_dict())
 			# init value
 			inputs, labels = zip(*batch)
 			# show_image(inputs[2])
@@ -155,12 +156,12 @@ class OneShotAug():
 			# compute output
 			outputs = self.net(inputs)
 			loss = self.loss_criterion(outputs, labels)
-			
 			# compute gradient and do SGD step
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
-		new_weights.append(deepcopy(self.net.state_dict()))
+			
+			new_weights.append({name: last_backup[name] - self.net.state_dict()[name] for name in self.net.state_dict()})
 		return new_weights
 	
 	def evaluate_model(self, dataset, mode="total_test"):
