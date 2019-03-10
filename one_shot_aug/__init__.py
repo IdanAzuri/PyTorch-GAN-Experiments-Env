@@ -1,5 +1,4 @@
 import os
-from copy import deepcopy
 
 import numpy as np
 import torch
@@ -109,13 +108,13 @@ class OneShotAug():
 				# update learning rate
 				
 				self.exp_lr_scheduler.step()
-				
+		
 		# predict on test set after training finished
 		self.predict(self.loss_criterion)
 	
 	def _train_step(self, train_loader, current_meta_step):
 		self.net.train()
-		weights_original = self.net.state_dict() #deepcopy(self.net.state_dict())
+		weights_original = self.net.state_dict()  # deepcopy(self.net.state_dict())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
 			new_weights.append(self.inner_train(train_loader))
@@ -159,7 +158,7 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
-			
+		
 		return self.net.state_dict()
 	
 	def evaluate_model(self, dataset, mode="total_test"):
@@ -176,7 +175,7 @@ class OneShotAug():
 	
 	def learn_for_eval(self, train_set):
 		
-		model_state = self.net.state_dict()#deepcopy(self.net.state_dict())  # store weights to avoid training
+		model_state = self.net.state_dict()  # deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
