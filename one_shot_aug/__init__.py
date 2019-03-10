@@ -1,17 +1,12 @@
-import io
 import os
-import sys
-import time
 from copy import deepcopy
 
 import numpy as np
 import torch
 from hbconfig import Config
-from skimage.io import imshow
 from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.optim import lr_scheduler
-from torchvision.transforms import transforms
 
 from logger import Logger
 from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test
@@ -22,6 +17,7 @@ from . import utils
 
 
 meta_step_size = 0.1  # stepsize of outer optimization, i.e., meta-optimization
+meta_step_size_final = 0.
 
 
 class OneShotAug():
@@ -42,7 +38,6 @@ class OneShotAug():
 		self.inner_iters = Config.train.inner_iters
 		self.replacement = Config.train.replacement
 		self.meta_batch_size = Config.train.meta_batch_size
-		self.meta_step_count = 0
 		# load model
 		# self.classifier.model.load_state_dict(torch.load(os.path.join(self.model_path + str(Config.model.name) + '.t7')))
 		if Config.model.type == "known_net":
@@ -82,54 +77,43 @@ class OneShotAug():
 				print("Using ", torch.cuda.device_count(), " GPUs!")
 			cudnn.benchmark = True
 		print('Total params: %.2fK' % (sum(p.numel() for p in self.net.parameters()) / 1000.0))
-		while True:
-			self.meta_step_count = self.prev_meta_step_count + 1  # init value
-			self.prev_meta_step_count = self.meta_step_count
+		for current_meta_step in range(self.prev_meta_step_count, Config.train.meta_iters):
 			# training
-			self._train_step(train_loader)
+			self._train_step(train_loader, current_meta_step)
 			state = self.classifier_optimizer.state_dict()  # save optimizer state
 			
 			# validation
-			if self.meta_step_count % 10 == 0:
-				# Step Verbose & Tensorboard Summary
-				if self.meta_step_count % Config.train.verbose_step_count == 0:
-					validation_num_correct, valid_count = self.evaluate_model(validation_loader)
-					# self._add_summary(self.meta_step_count, {"loss_valid": validation_loss})
-					# self._add_summary(self.meta_step_count, {"top1_acc_valid": validation_acc})
-					# valid_acc_eval = validation_num_correct / self.num_classes
-					valid_acc_eval = float(validation_num_correct) / valid_count
-					self._add_summary(self.meta_step_count, {"accuracy_valid": valid_acc_eval})
-					
-					train_num_correct, train_count = self.evaluate_model(train_loader)
-					# self._add_summary(self.meta_step_count, {"loss_train": train_loss})
-					# self._add_summary(self.meta_step_count, {"top1_acc_train": train_acc})
-					# train_acc_eval = train_num_correct / self.num_classes
-					train_acc_eval = float(train_num_correct) / train_count
-					self._add_summary(self.meta_step_count, {"accuracy_train": train_acc_eval})
-					print(f"step{self.meta_step_count}| accuracy_train: {train_acc_eval}| accuracy_valid:{valid_acc_eval}")
-					# loading back optimizer state
-					self.classifier_optimizer.load_state_dict(state)
-					self.logger.append([self.meta_step_count, self.learning_rate, train_acc_eval,
-					                    valid_acc_eval])  # deep copy the model  # print(f"step {self.meta_step_count}:_loss{validation_loss}")
-				# Interpolate between current weights and trained weights from this task
-				# I.e. (weights_before - weights_after) is the meta-gradient
+			# Step Verbose & Tensorboard Summary
+			if current_meta_step % Config.train.verbose_step_count == 0:
+				validation_num_correct, valid_count = self.evaluate_model(validation_loader)
+				# self._add_summary(current_meta_step, {"loss_valid": validation_loss})
+				# self._add_summary(current_meta_step, {"top1_acc_valid": validation_acc})
+				valid_acc_eval = float(validation_num_correct) / valid_count
+				self._add_summary(current_meta_step, {"accuracy_valid": valid_acc_eval})
 				
+				train_num_correct, train_count = self.evaluate_model(train_loader)
+				# self._add_summary(current_meta_step, {"loss_train": train_loss})
+				# self._add_summary(current_meta_step, {"top1_acc_train": train_acc})
+				train_acc_eval = float(train_num_correct) / train_count
+				self._add_summary(current_meta_step, {"accuracy_train": train_acc_eval})
+				print(f"step{current_meta_step}| accuracy_train: {train_acc_eval}| accuracy_valid:{valid_acc_eval}")
+				# loading back optimizer state
+				self.classifier_optimizer.load_state_dict(state)
+				self.logger.append([current_meta_step, self.learning_rate, train_acc_eval, valid_acc_eval])
+				
+				# TODO: implement update when lowest loss
 				# if validation_loss < best_loss:
 				# 	best_loss = validation_loss
 				# 	best_model_wts = deepcopy(self.classifier.state_dict())
 				
-				# if self.meta_step_count % 10000 == 0:
-				# 	torch.save(best_model_wts, os.path.join(self.model_path + str(Config.model.name) + '.t7'))
-				# 	print('save!')
-				
 				# update learning rate
 				
-				# self.exp_lr_scheduler.step()
-				if self.meta_step_count >= Config.train.meta_iters:
-					self.predict(self.loss_criterion)
-					sys.exit()
+				self.exp_lr_scheduler.step()
+				
+		# predict on test set after training finished
+		self.predict(self.loss_criterion)
 	
-	def _train_step(self, train_loader):
+	def _train_step(self, train_loader, current_meta_step):
 		self.net.train()
 		weights_original = deepcopy(self.net.state_dict())
 		new_weights = []
@@ -137,21 +121,20 @@ class OneShotAug():
 			new_weights = self.inner_train(new_weights, train_loader)
 			self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		
-		self.interpolate_new_weights(new_weights, weights_original)
+		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
 		
 		# Save model parameters
-		if self.meta_step_count % Config.train.save_checkpoints_steps == 0:
-			utils.save_checkpoint(self.meta_step_count, self.model_path, self.net, self.classifier_optimizer)
-		
+		if current_meta_step % Config.train.save_checkpoints_steps == 0:
+			utils.save_checkpoint(current_meta_step, self.model_path, self.net, self.classifier_optimizer)
 		return  # losses.avg, top1.avg
 	
-	def interpolate_new_weights(self, new_weights, weights_original):
+	def interpolate_new_weights(self, new_weights, weights_original, current_meta_step):
 		ws = len(new_weights)
 		fweights = {name: new_weights[0][name] / float(ws) for name in new_weights[0]}
 		for i in range(1, ws):
 			for name in new_weights[i]:
 				fweights[name] += new_weights[i][name] / float(ws)
-		frac_done = self.meta_step_count / Config.train.meta_iters
+		frac_done = current_meta_step / Config.train.meta_iters
 		cur_meta_step_size = frac_done * meta_step_size + (1 - frac_done) * meta_step_size
 		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
@@ -159,10 +142,10 @@ class OneShotAug():
 		mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
 		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_train_loader):
+			# init value
 			inputs, labels = zip(*batch)
-			# show_image(inputs[1])
-		
-			self.meta_step_count = self.prev_meta_step_count + 1  # init value
+			# show_image(inputs[2])
+			
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
@@ -179,34 +162,23 @@ class OneShotAug():
 			self.classifier_optimizer.step()
 		new_weights.append(deepcopy(self.net.state_dict()))
 		return new_weights
+	
 	def evaluate_model(self, dataset, mode="total_test"):
 		self.net.train()
-		losses = AverageMeter()
-		top1 = AverageMeter()
-		top5 = AverageMeter()
-		old_model_state, test_set, train_set = self.learn_for_eval(dataset)
+		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
+		old_model_state = self.learn_for_eval(train_set)
 		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
+		
 		self.net.load_state_dict(old_model_state)  # load back model's weights
 		
-		# prec1, prec5 = accuracy(outputs.data, labels.data, topk=(1, 5))
-		# losses.update(loss.data.item(), inputs.size(0))
-		# top1.update(prec1.item(), inputs.size(0))
-		# top5.update(prec5.item(), inputs.size(0))
-		# Step Verbose & Tensorboard Summary
-		# if step_count % Config.train.verbose_step_count == 0:
-		# 	self._add_summary(step_count, {f"loss_{mode}": losses.avg})
-		# 	self._add_summary(step_count, {f"top1_acc_{mode}": top1.avg})
-		# 	self._add_summary(step_count, {f"top5_acc_{mode}": top5.avg})
-		# num_correct = float(sum([pred == sample[1] for pred, sample in zip(test_preds, test_set)]))
-		# self.prev_meta_step_count = step_count
 		if mode == "total_test":
 			return num_correct, len_set
 		return num_correct
 	
-	def learn_for_eval(self, dataset):
-		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
+	def learn_for_eval(self, train_set):
+		
 		model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
-		mini_batches = _mini_batches(train_set, Config.eval.eval_inner_iters, Config.eval.eval_inner_iters, self.replacement)
+		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
@@ -222,7 +194,8 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
-		return model_state, test_set, train_set
+		
+		return model_state
 	
 	def predict(self, criterion):
 		print("Predicting on test set...")
@@ -302,6 +275,8 @@ def count_correct(pred, target):
 	''' count number of correct classification predictions in a batch '''
 	pairs = [int(x == y) for (x, y) in zip(pred, target)]
 	return sum(pairs)
+
+
 # Show Image
 def show_image(image):
 	import matplotlib.pyplot as plt
@@ -312,6 +287,6 @@ def show_image(image):
 	# image[0] = image[0] * [0.229, 0.224, 0.225] +[0.485, 0.456, 0.406]
 	
 	# Print the image
-	plt.imshow(np.transpose(image, (1,2,0)), interpolation='nearest')
+	plt.imshow(np.transpose(image, (1, 2, 0)), interpolation='nearest')
 	# plt.imshow(np.transpose(image, (1, 2, 0)))
 	plt.show()
