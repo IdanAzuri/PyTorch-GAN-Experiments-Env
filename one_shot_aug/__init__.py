@@ -16,7 +16,7 @@ from utils import saving_config
 from . import utils
 
 
-meta_step_size = 0.1  # stepsize of outer optimization, i.e., meta-optimization
+meta_step_size = 1.  # stepsize of outer optimization, i.e., meta-optimization
 meta_step_size_final = 0.
 
 
@@ -135,7 +135,7 @@ class OneShotAug():
 			for name in new_weights[i]:
 				fweights[name] += new_weights[i][name] / float(ws)
 		frac_done = current_meta_step / Config.train.meta_iters
-		cur_meta_step_size = frac_done * meta_step_size + (1 - frac_done) * meta_step_size
+		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
 	def inner_train(self, new_weights, train_loader):
