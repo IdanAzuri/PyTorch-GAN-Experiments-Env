@@ -115,10 +115,10 @@ class OneShotAug():
 	
 	def _train_step(self, train_loader, current_meta_step):
 		self.net.train()
-		weights_original = deepcopy(self.net.state_dict())
+		weights_original = self.net.state_dict() #deepcopy(self.net.state_dict())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
-			new_weights = self.inner_train(new_weights, train_loader)
+			new_weights.append(self.inner_train(train_loader))
 			self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		
 		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
@@ -138,11 +138,10 @@ class OneShotAug():
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
-	def inner_train(self, new_weights, train_loader):
+	def inner_train(self, train_loader):
 		mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
 		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_train_loader):
-			last_backup = deepcopy(self.net.state_dict())
 			# init value
 			inputs, labels = zip(*batch)
 			# show_image(inputs[2])
@@ -161,8 +160,7 @@ class OneShotAug():
 			loss.backward()
 			self.classifier_optimizer.step()
 			
-			new_weights.append({name: last_backup[name] - self.net.state_dict()[name] for name in self.net.state_dict()})
-		return new_weights
+		return self.net.state_dict()
 	
 	def evaluate_model(self, dataset, mode="total_test"):
 		self.net.train()
@@ -178,7 +176,7 @@ class OneShotAug():
 	
 	def learn_for_eval(self, train_set):
 		
-		model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
+		model_state = self.net.state_dict()#deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
