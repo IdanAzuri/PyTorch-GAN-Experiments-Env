@@ -14,7 +14,7 @@ model:
     pretrained: False
     seed: 0
     arch: small_cnn #resnet,densenet
-    transductive: True
+    transductive: False
     z_dim: 100  # Random noise dimension coming into generator, per output vector
     real_dim: 1024  #$image_size * image_size
     filters: 32
@@ -26,14 +26,11 @@ model:
     dropout: 0.3
     use_augmentation: False
     dataset: miniimagenet
-#    total_train_classes: 65 #miniimagenet
-#    total_valid_classes: 20 #miniimagenet
-#    total_test_classes: 15 #miniimagenet
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
     train_shot: 15
 train:
-    model_dir: "outputs/4conv_transductive_train_shot15"
+    model_dir: "outputs/4conv_transductive"
     batch_size: 64
     shuffle: true
     
@@ -53,8 +50,6 @@ train:
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
-predict:
-    batch_size: 32
 
 slack:
     webhook_url: ""  # after training notify you using slack-webhook
