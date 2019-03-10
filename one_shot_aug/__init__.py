@@ -162,7 +162,7 @@ class OneShotAug():
 		return self.net.state_dict()
 	
 	def evaluate_model(self, dataset, mode="total_test"):
-		self.net.train()
+		
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		old_model_state = self.learn_for_eval(train_set)
 		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
@@ -174,7 +174,7 @@ class OneShotAug():
 		return num_correct
 	
 	def learn_for_eval(self, train_set):
-		
+		self.net.train()
 		model_state = self.net.state_dict()  # deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
