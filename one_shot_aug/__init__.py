@@ -113,7 +113,6 @@ class OneShotAug():
 		self.predict(self.loss_criterion)
 	
 	def _train_step(self, train_loader, current_meta_step):
-		self.net.train()
 		weights_original = self.net.state_dict()  # deepcopy(self.net.state_dict())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
@@ -138,6 +137,7 @@ class OneShotAug():
 		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
 	def inner_train(self, train_loader):
+		self.net.train()
 		mini_data_set = _sample_mini_dataset(train_loader, self.num_classes, self.train_shot)
 		mini_train_loader = _mini_batches(mini_data_set, self.inner_batch_size, self.inner_iters, self.replacement)
 		for batch_idx, batch in enumerate(mini_train_loader):
@@ -213,7 +213,7 @@ class OneShotAug():
 		return evaluation
 	
 	def build_criterion(self):
-		return torch.nn.CrossEntropyLoss().to(self.device)
+		return torch.nn.NLLLoss().to(self.device)
 	
 	def build_optimizers(self, classifier):
 		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)
