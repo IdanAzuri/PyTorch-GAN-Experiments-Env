@@ -122,8 +122,8 @@ class OneShotAug():
 		for _ in range(self.meta_batch_size):
 			new_weights.append(self.inner_train(train_loader))
 		# self.net.point_grad_to(new_weights)
-		self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		b = list(self.net.parameters())[0].clone()
+		self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		print(f"IS EQUAL{torch.equal(a.data, b.data)}")
 		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
 		print(f"after batch")
