@@ -116,8 +116,8 @@ class OneShotAug():
 	def _train_step(self, train_loader, current_meta_step):
 		weights_original = deepcopy(self.net.state_dict())
 		# a = list(self.net.parameters())[0].clone()
-		print(f"before batch")
-		print(list(self.net.parameters())[-1])
+		# print(f"before batch")
+		# print(list(self.net.parameters())[-1])
 		new_weights = []
 		for _ in range(self.meta_batch_size):
 			new_weights.append(self.inner_train(train_loader))
@@ -171,9 +171,9 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
-			if batch_idx % 6 == 0:
-				print(f"inner loop: {batch_idx}")
-				print(list(self.net.parameters())[-1])
+			# if batch_idx % 6 == 0:
+				# print(f"inner loop: {batch_idx}")
+				# print(list(self.net.parameters())[-1])
 		
 		return self.net.state_dict()
 	
