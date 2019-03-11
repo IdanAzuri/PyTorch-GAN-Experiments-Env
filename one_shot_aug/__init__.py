@@ -82,7 +82,7 @@ class OneShotAug():
 		for current_meta_step in range(self.prev_meta_step_count, Config.train.meta_iters):
 			# Training
 			self._train_step(train_loader, current_meta_step)
-			state = self.classifier_optimizer.state_dict()  # save optimizer state
+			state = deepcopy(self.classifier_optimizer.state_dict())  # save optimizer state
 			
 			# Evaluation
 			if current_meta_step % Config.train.verbose_step_count == 0:
@@ -115,13 +115,16 @@ class OneShotAug():
 	
 	def _train_step(self, train_loader, current_meta_step):
 		weights_original = deepcopy(self.net.state_dict())
+		print(f"before batch")
+		print(list(self.net.parameters()))
 		new_weights = []
 		for _ in range(self.meta_batch_size):
 			new_weights.append(self.inner_train(train_loader))
 		# self.net.point_grad_to(new_weights)
 		self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
-		
+		print(f"after batch")
+		print(list(self.net.parameters()))
 		# Save model parameters
 		if current_meta_step % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(current_meta_step, self.model_path, self.net, self.classifier_optimizer)
@@ -132,9 +135,7 @@ class OneShotAug():
 		frac_done = current_meta_step / Config.train.meta_iters
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
-		num_weights = len(new_weights)
-		
-		fweights = self.average_weights(new_weights, num_weights)
+		fweights = self.average_weights(new_weights, len(new_weights))
 		
 		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
@@ -167,6 +168,9 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
+			if batch_idx % 6 == 0:
+				print(f"inner loop:{batch_idx}")
+				print(list(self.net.parameters()))
 		
 		return self.net.state_dict()
 	
@@ -201,6 +205,7 @@ class OneShotAug():
 			self.classifier_optimizer.zero_grad()
 			loss.backward()
 			self.classifier_optimizer.step()
+
 		
 		return model_state
 	
