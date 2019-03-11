@@ -1,4 +1,6 @@
 import os
+from collections import OrderedDict
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -57,7 +59,7 @@ class OneShotAug():
 	def train_fn(self, criterion, optimizer, resume=True):
 		self.loss_criterion = criterion
 		self.classifier_optimizer = optimizer
-		self.exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=5000, gamma=0.1)
+		# self.exp_lr_scheduler = lr_scheduler.StepLR(self.classifier_optimizer, step_size=10, gamma=0.1)
 		
 		if resume:
 			self.prev_meta_step_count, self.net, self.classifier_optimizer = utils.load_saved_model(self.model_path, self.net, self.classifier_optimizer)
@@ -71,18 +73,18 @@ class OneShotAug():
 		# switch to train mode
 		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 		if self.use_cuda:
-			self.net = torch.nn.DataParallel(self.net).to(self.device)
-			if torch.cuda.device_count() > 1:
-				print("Using ", torch.cuda.device_count(), " GPUs!")
-			cudnn.benchmark = True
+			self.net.cuda()
+			# self.net = torch.nn.DataParallel(self.net).to(self.device)
+			# if torch.cuda.device_count() > 1:
+			# 	print("Using ", torch.cuda.device_count(), " GPUs!")
+			# cudnn.benchmark = True
 		print('Total params: %.2fK' % (sum(p.numel() for p in self.net.parameters()) / 1000.0))
 		for current_meta_step in range(self.prev_meta_step_count, Config.train.meta_iters):
-			# training
+			# Training
 			self._train_step(train_loader, current_meta_step)
 			state = self.classifier_optimizer.state_dict()  # save optimizer state
 			
-			# validation
-			# Step Verbose & Tensorboard Summary
+			# Evaluation
 			if current_meta_step % Config.train.verbose_step_count == 0:
 				validation_num_correct, valid_count = self.evaluate_model(validation_loader)
 				# self._add_summary(current_meta_step, {"loss_valid": validation_loss})
@@ -106,19 +108,18 @@ class OneShotAug():
 				# 	best_model_wts = deepcopy(self.classifier.state_dict())
 				
 				# update learning rate
-				
-				self.exp_lr_scheduler.step()
+				# self.exp_lr_scheduler.step()
 		
 		# predict on test set after training finished
 		self.predict(self.loss_criterion)
 	
 	def _train_step(self, train_loader, current_meta_step):
-		weights_original = self.net.state_dict()  # deepcopy(self.net.state_dict())
+		weights_original = deepcopy(self.net.state_dict())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
 			new_weights.append(self.inner_train(train_loader))
-			self.net.load_state_dict({name: weights_original[name] for name in weights_original})
-		
+		# self.net.point_grad_to(new_weights)
+		self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
 		
 		# Save model parameters
@@ -127,14 +128,22 @@ class OneShotAug():
 		return  # losses.avg, top1.avg
 	
 	def interpolate_new_weights(self, new_weights, weights_original, current_meta_step):
-		ws = len(new_weights)
-		fweights = {name: new_weights[0][name] / float(ws) for name in new_weights[0]}
-		for i in range(1, ws):
-			for name in new_weights[i]:
-				fweights[name] += new_weights[i][name] / float(ws)
+		
 		frac_done = current_meta_step / Config.train.meta_iters
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
+		
+		num_weights = len(new_weights)
+		
+		fweights = self.average_weights(new_weights, num_weights)
+		
 		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
+	
+	def average_weights(self, new_weights, num_weights):
+		fweights = {name: new_weights[0][name] / float(num_weights) for name in new_weights[0]}
+		for i in range(1, num_weights):
+			for name in new_weights[i]:
+				fweights[name] += new_weights[i][name] / float(num_weights)
+		return fweights
 	
 	def inner_train(self, train_loader):
 		self.net.train()
@@ -175,7 +184,7 @@ class OneShotAug():
 	
 	def learn_for_eval(self, train_set):
 		self.net.train()
-		model_state = self.net.state_dict()  # deepcopy(self.net.state_dict())  # store weights to avoid training
+		model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):

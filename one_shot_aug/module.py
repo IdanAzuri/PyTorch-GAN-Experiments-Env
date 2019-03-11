@@ -103,10 +103,10 @@ class MiniImageNetModel(nn.Module):
 		# self.out = nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes)
 		
 		# Initialize layers
-		self.weights_init(self.layer1)
-		self.weights_init(self.layer2)
-		self.weights_init(self.layer3)
-		self.weights_init(self.layer4)
+		# self.weights_init(self.layer1)
+		# self.weights_init(self.layer2)
+		# self.weights_init(self.layer3)
+		# self.weights_init(self.layer4)
 	
 	def weights_init(self, module):
 		for m in module.modules():
