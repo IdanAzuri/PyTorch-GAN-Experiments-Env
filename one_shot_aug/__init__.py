@@ -127,6 +127,7 @@ class OneShotAug():
 			# print(f"in train IS EQUAL {torch.equal(a.data, b.data)}")
 			# self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
+		self.classifier_optimizer.step()
 		# print(f"after batch")
 		# print(list(self.net.parameters())[-1])
 		# Save model parameters

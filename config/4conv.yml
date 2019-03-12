@@ -14,7 +14,7 @@ model:
     pretrained: False
     seed: 0
     arch: small_cnn #resnet,densenet
-    transductive: True
+    transductive: False
     z_dim: 100  # Random noise dimension coming into generator, per output vector
     real_dim: 1024  #$image_size * image_size
     filters: 32

@@ -170,3 +170,4 @@ def _split_train_test(samples, test_shots=1):
 		raise IndexError('not enough examples of each class for test set')
 	return train_set, test_set
 
+#TODO 1.check test_predictin method 2.update meta-optimizer
