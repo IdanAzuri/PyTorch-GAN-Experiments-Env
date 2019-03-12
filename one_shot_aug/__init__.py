@@ -120,15 +120,12 @@ class OneShotAug():
 		# print(list(self.net.parameters())[-1])
 		new_weights = []
 		for _ in range(self.meta_batch_size):
+			# a = list(self.net.parameters())[-1].clone()
 			new_weights.append(self.inner_train(train_loader))
-			a = list(self.net.parameters())[0].clone()
 			vector_to_parameters(weights_original, self.net.parameters())
-			b = list(self.net.parameters())[0].clone()
-			print(f"in train IS EQUAL {torch.equal(a.data, b.data)}")
+			# b = list(self.net.parameters())[-1].clone()
+			# print(f"in train IS EQUAL {torch.equal(a.data, b.data)}")
 			# self.net.load_state_dict({name: weights_original[name] for name in weights_original})
-		# print(f"IS EQUAL{torch.equal(a.data, b.data)}")
-		# inner_net = deepcopy(self.net)
-		# b = list(inner_net.parameters())[0].clone()
 		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
 		# print(f"after batch")
 		# print(list(self.net.parameters())[-1])
@@ -143,9 +140,9 @@ class OneShotAug():
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
 		fweights = self.average_weights(new_weights)
-		a = list(self.net.parameters())[0].clone()
+		a = list(self.net.parameters())[-1].clone()
 		vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.net.parameters())
-		b = list(self.net.parameters())[0].clone()
+		b = list(self.net.parameters())[-1].clone()
 		print(f"IS EQUAL {torch.equal(a.data, b.data)}")
 		# self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
@@ -168,7 +165,9 @@ class OneShotAug():
 		for batch_idx, batch in enumerate(mini_train_loader):
 			# init value
 			inputs, labels = zip(*batch)
-			# show_image(inputs[2])
+			# show_image(inputs[0])
+			# show_image(inputs[1])
+			# show_image(inputs[5])
 			
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
