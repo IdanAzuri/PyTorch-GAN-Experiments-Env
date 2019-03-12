@@ -140,10 +140,10 @@ class OneShotAug():
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
 		fweights = self.average_weights(new_weights)
-		a = list(self.net.parameters())[-1].clone()
+		# a = list(self.net.parameters())[-1].clone()
 		vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.net.parameters())
-		b = list(self.net.parameters())[-1].clone()
-		print(f"IS EQUAL {torch.equal(a.data, b.data)}")
+		# b = list(self.net.parameters())[-1].clone()
+		# print(f"IS EQUAL {torch.equal(a.data, b.data)}")
 		# self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
 	def average_weights(self, param_vector):
