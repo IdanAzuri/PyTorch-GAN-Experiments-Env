@@ -34,10 +34,9 @@ model:
     train_shot: 15
 train:
     model_dir: "outputs/4conv"
-    batch_size: 64
     shuffle: true
     
-    learning_rate: 0.0001  # 2e-4
+    learning_rate: 0.0001
     optim_betas:
         - 0
         - 0.999

@@ -7,6 +7,7 @@ import torch
 from hbconfig import Config
 from torch.autograd import Variable
 from torch.backends import cudnn
+from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.optim import lr_scheduler
 
 from logger import Logger
@@ -114,17 +115,20 @@ class OneShotAug():
 		self.predict(self.loss_criterion)
 	
 	def _train_step(self, train_loader, current_meta_step):
-		weights_original = deepcopy(self.net.state_dict())
-		# a = list(self.net.parameters())[0].clone()
+		weights_original = parameters_to_vector(self.net.parameters())
 		# print(f"before batch")
 		# print(list(self.net.parameters())[-1])
 		new_weights = []
 		for _ in range(self.meta_batch_size):
 			new_weights.append(self.inner_train(train_loader))
-		# self.net.point_grad_to(new_weights)
-		# b = list(self.net.parameters())[0].clone()
-		self.net.load_state_dict({name: weights_original[name] for name in weights_original})
+			a = list(self.net.parameters())[0].clone()
+			vector_to_parameters(weights_original, self.net.parameters())
+			b = list(self.net.parameters())[0].clone()
+			print(f"in train IS EQUAL {torch.equal(a.data, b.data)}")
+			# self.net.load_state_dict({name: weights_original[name] for name in weights_original})
 		# print(f"IS EQUAL{torch.equal(a.data, b.data)}")
+		# inner_net = deepcopy(self.net)
+		# b = list(inner_net.parameters())[0].clone()
 		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
 		# print(f"after batch")
 		# print(list(self.net.parameters())[-1])
@@ -134,20 +138,28 @@ class OneShotAug():
 		return  # losses.avg, top1.avg
 	
 	def interpolate_new_weights(self, new_weights, weights_original, current_meta_step):
-		
+		# print(list(self.net.parameters())[-1])
 		frac_done = current_meta_step / Config.train.meta_iters
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
-		fweights = self.average_weights(new_weights, len(new_weights))
-		
-		self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
+		fweights = self.average_weights(new_weights)
+		a = list(self.net.parameters())[0].clone()
+		vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.net.parameters())
+		b = list(self.net.parameters())[0].clone()
+		print(f"IS EQUAL {torch.equal(a.data, b.data)}")
+		# self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
-	def average_weights(self, new_weights, num_weights):
-		fweights = {name: new_weights[0][name] / float(num_weights) for name in new_weights[0]}
-		for i in range(1, num_weights):
-			for name in new_weights[i]:
-				fweights[name] += new_weights[i][name] / float(num_weights)
-		return fweights
+	def average_weights(self, param_vector):
+		res = param_vector[0]
+		for param_seq in range(1, len(param_vector)):
+			res += param_seq
+		return  res / len(param_vector) # mean
+		# num_weights = len(new_weights)
+		# fweights = {name: new_weights[0][name] / float(num_weights) for name in new_weights[0]}
+		# for i in range(1, num_weights):
+		# 	for name in new_weights[i]:
+		# 		fweights[name] += new_weights[i][name] / float(num_weights)
+		# return fweights
 	
 	def inner_train(self, train_loader):
 		self.net.train()
@@ -175,7 +187,7 @@ class OneShotAug():
 				# print(f"inner loop: {batch_idx}")
 				# print(list(self.net.parameters())[-1])
 		
-		return self.net.state_dict()
+		return parameters_to_vector(self.net.parameters())
 	
 	def evaluate_model(self, dataset, mode="total_test"):
 		
@@ -230,7 +242,7 @@ class OneShotAug():
 		return evaluation
 	
 	def build_criterion(self):
-		return torch.nn.NLLLoss().to(self.device)
+		return torch.nn.CrossEntropyLoss().to(self.device)
 	
 	def build_optimizers(self, classifier):
 		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)

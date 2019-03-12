@@ -99,14 +99,14 @@ class MiniImageNetModel(nn.Module):
 		self.layer2 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer3 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer4 = _conv_layer(self.n_filters, self.n_filters, 3)
-		self.out = nn.Sequential(nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes),  nn.LogSoftmax(1))
-		# self.out = nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes)
+		# self.out = nn.Sequential(nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes),  nn.LogSoftmax(1))
+		self.out = nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes)
 		
 		# Initialize layers
-		# self.weights_init(self.layer1)
-		# self.weights_init(self.layer2)
-		# self.weights_init(self.layer3)
-		# self.weights_init(self.layer4)
+		self.weights_init(self.layer1)
+		self.weights_init(self.layer2)
+		self.weights_init(self.layer3)
+		self.weights_init(self.layer4)
 	
 	def weights_init(self, module):
 		for m in module.modules():
@@ -125,7 +125,7 @@ class MiniImageNetModel(nn.Module):
 		x = x.view(x.size(0), -1)
 		x = self.out(x)
 		return x
-	
+		
 	def point_grad_to(self, target):
 		'''
 		from reptile
