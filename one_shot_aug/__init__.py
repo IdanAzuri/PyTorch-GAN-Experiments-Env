@@ -190,9 +190,9 @@ class OneShotAug():
 		return parameters_to_vector(self.net.parameters())
 	
 	def evaluate_model(self, dataset, mode="total_test"):
-		
+		old_model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
-		old_model_state = self.learn_for_eval(train_set)
+		self.learn_for_eval(train_set)
 		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		
 		self.net.load_state_dict(old_model_state)  # load back model's weights
@@ -203,7 +203,6 @@ class OneShotAug():
 	
 	def learn_for_eval(self, train_set):
 		self.net.train()
-		model_state = deepcopy(self.net.state_dict())  # store weights to avoid training
 		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
@@ -222,7 +221,7 @@ class OneShotAug():
 			self.classifier_optimizer.step()
 
 		
-		return model_state
+		return
 	
 	def predict(self, criterion):
 		print("Predicting on test set...")
