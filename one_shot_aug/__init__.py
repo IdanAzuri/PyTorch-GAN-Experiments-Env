@@ -234,10 +234,10 @@ class OneShotAug():
 		return evaluation
 	
 	def build_criterion(self):
-		return torch.nn.CrossEntropyLoss().to(self.device)
+		return torch.nn.NLLLoss().to(self.device)
 	
 	def build_optimizers(self, classifier):
-		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas,weight_decay=1)
+		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)
 		
 		return classifier_optimizer
 	
