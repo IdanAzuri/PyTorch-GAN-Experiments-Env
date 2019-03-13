@@ -115,33 +115,26 @@ class OneShotAug():
 		self.predict(self.loss_criterion)
 	
 	def _train_step(self, train_loader, current_meta_step):
-		weights_original = parameters_to_vector(self.net.parameters())
-		# print(f"before batch")
-		# print(list(self.net.parameters())[-1])
+		weights_original = self.net.clone(self.use_cuda)#parameters_to_vector(self.net.parameters().clone())
 		new_weights = []
 		for _ in range(self.meta_batch_size):
-			# a = list(self.net.parameters())[-1].clone()
 			new_weights.append(self.inner_train(train_loader))
-			vector_to_parameters(weights_original, self.net.parameters())
-			# b = list(self.net.parameters())[-1].clone()
-			# print(f"in train IS EQUAL {torch.equal(a.data, b.data)}")
-			# self.net.load_state_dict({name: weights_original[name] for name in weights_original})
-		self.interpolate_new_weights(new_weights, weights_original, current_meta_step)
-		self.classifier_optimizer.step()
-		# print(f"after batch")
-		# print(list(self.net.parameters())[-1])
+			# vector_to_parameters(weights_original, self.net.parameters())
+		self.net.load_state_dict(weights_original.state_dict())
+		self.interpolate_new_weights(new_weights, weights_original.parameters(), current_meta_step)
+		# self.classifier_optimizer.step()
+		
 		# Save model parameters
-		if current_meta_step % Config.train.save_checkpoints_steps == 0:
+		if current_meta_step + 1 % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(current_meta_step, self.model_path, self.net, self.classifier_optimizer)
 		return  # losses.avg, top1.avg
 	
 	def interpolate_new_weights(self, new_weights, weights_original, current_meta_step):
-		# print(list(self.net.parameters())[-1])
+		weights_original=parameters_to_vector(weights_original)
 		frac_done = current_meta_step / Config.train.meta_iters
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
 		fweights = self.average_weights(new_weights)
-		# a = list(self.net.parameters())[-1].clone()
 		vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.net.parameters())
 		# b = list(self.net.parameters())[-1].clone()
 		# print(f"IS EQUAL {torch.equal(a.data, b.data)}")

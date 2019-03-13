@@ -1,6 +1,5 @@
-import torch
-
 import numpy as np
+import torch
 import torch.nn as nn
 import torchvision.models as models
 from hbconfig import Config
@@ -99,8 +98,8 @@ class MiniImageNetModel(nn.Module):
 		self.layer2 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer3 = _conv_layer(self.n_filters, self.n_filters, 3)
 		self.layer4 = _conv_layer(self.n_filters, self.n_filters, 3)
-		# self.out = nn.Sequential(nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes),  nn.LogSoftmax(1))
-		self.out = nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes)
+		self.out = nn.Sequential(nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes), nn.LogSoftmax(1))
+		# self.out = nn.Linear(self.n_filters * ds_size ** 2, Config.model.n_classes)
 		
 		# Initialize layers
 		self.weights_init(self.layer1)
@@ -140,7 +139,13 @@ class MiniImageNetModel(nn.Module):
 					p.grad = Variable(torch.zeros(p.size()))
 			p.grad.data.zero_()  # not sure this is required
 			p.grad.data.add_(p.data - target_p.data)
-
+	
+	def clone(self, use_cuda):
+		clone = MiniImageNetModel()
+		clone.load_state_dict(self.state_dict())
+		if use_cuda:
+			clone.cuda()
+		return clone
 
 def _conv_layer(n_input, n_output, k):
 	"3x3 convolution with padding"
