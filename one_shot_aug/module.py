@@ -125,7 +125,7 @@ class MiniImageNetModel(nn.Module):
 		x = self.out(x)
 		return x
 		
-	def point_grad_to(self, target):
+	def point_grad_to(self, target, is_cuda):
 		'''
 		from reptile
 		Set .grad attribute of each parameter to be proportional
@@ -133,7 +133,7 @@ class MiniImageNetModel(nn.Module):
 		'''
 		for p, target_p in zip(self.parameters(), target.parameters()):
 			if p.grad is None:
-				if self.is_cuda():
+				if is_cuda:
 					p.grad = Variable(torch.zeros(p.size())).cuda()
 				else:
 					p.grad = Variable(torch.zeros(p.size()))

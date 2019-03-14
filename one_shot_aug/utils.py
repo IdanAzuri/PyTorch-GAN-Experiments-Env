@@ -11,15 +11,16 @@ import torch
 from hbconfig import Config
 
 
-def load_saved_model(path, model, optimizer):
+def load_saved_model(path, model, optimizer, state=None):
 	latest_path = find_latest(path + "/")
 	if latest_path is None:
-		return 0, model, optimizer
+		return 0, model, optimizer, state
 	
 	checkpoint = torch.load(latest_path)
 	
 	step_count = checkpoint['step_count']
-	state_dict = checkpoint['model']
+	state_dict = checkpoint['meta_net']
+	state= checkpoint['optimizer_state']
 	# if dataparallel
 	# if "module" in list(state_dict.keys())[0]:
 	try:
@@ -29,15 +30,15 @@ def load_saved_model(path, model, optimizer):
 			new_state_dict[name] = v
 		
 		model.load_state_dict(new_state_dict)
-		optimizer.load_state_dict(checkpoint['optimizer'])
+		optimizer.load_state_dict(checkpoint['meta_optimizer'])
 	except:
 	# else:
-		model.load_state_dict(checkpoint['model'])
+		model.load_state_dict(checkpoint['meta_net'])
 		if optimizer is not None:
-			optimizer.load_state_dict(checkpoint['optimizer'])
+			optimizer.load_state_dict(checkpoint['meta_optimizer'])
 	
 	print(f"Load checkpoints...! {latest_path}")
-	return step_count, model, optimizer
+	return step_count, model, optimizer, state
 
 
 def find_latest(find_path):
@@ -48,13 +49,18 @@ def find_latest(find_path):
 	return sorted_path[-1]
 
 
-def save_checkpoint(step, path, model, optimizer, max_to_keep=3):
+def save_checkpoint(step, path, meta_net, meta_optimizer,state, max_to_keep=3):
 	sorted_path = get_sorted_path(path)
 	for i in range(len(sorted_path) - max_to_keep):
 		os.remove(sorted_path[i])
 	
 	full_path = os.path.join(path, Config.model.name + f"-{step}.pkl")
-	torch.save({"step_count": step, "model": model.state_dict(), "optimizer": optimizer.state_dict()}, full_path)
+	torch.save({
+		"step_count": step,
+		'meta_net': meta_net.state_dict(),
+		'meta_optimizer': meta_optimizer.state_dict(),
+		'optimizer_state': state,
+		}, full_path)
 	print(f"Save checkpoints...! {full_path}")
 
 

@@ -23,7 +23,7 @@ class Model():
 				break
 		criterion = model.build_criterion()
 		if self.mode == self.TRAIN_MODE:
-			optimizers = model.build_optimizers(model.net)
+			optimizers = model.build_optimizers(model.meta_net)
 			
 			return model.train_fn(criterion, optimizers)
 		elif self.mode == self.EVALUATE_MODE:
