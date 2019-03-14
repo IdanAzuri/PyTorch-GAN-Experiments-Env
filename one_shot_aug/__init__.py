@@ -125,7 +125,7 @@ class OneShotAug():
 		# self.classifier_optimizer.step()
 		
 		# Save model parameters
-		if current_meta_step + 1 % Config.train.save_checkpoints_steps == 0:
+		if current_meta_step > 0 and current_meta_step  % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(current_meta_step, self.model_path, self.net, self.classifier_optimizer)
 		return  # losses.avg, top1.avg
 	
