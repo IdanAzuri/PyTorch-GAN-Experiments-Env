@@ -237,7 +237,7 @@ class OneShotAug():
 		return torch.nn.NLLLoss().to(self.device)
 	
 	def build_optimizers(self, classifier):
-		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=Config.train.optim_betas)
+		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=(0,0.999))
 		
 		return classifier_optimizer
 	
