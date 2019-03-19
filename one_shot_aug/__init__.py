@@ -147,7 +147,10 @@ class OneShotAug():
 		for param_name, param in net.named_parameters():
 			cur_grad = (name_to_param[param_name].data - param.data) / self.num_classes * cur_meta_step_size
 			if name_to_param[param_name].grad is None:
-				name_to_param[param_name].grad = Variable(torch.zeros(cur_grad.size()))
+				if self.use_cuda:
+					name_to_param[param_name].grad = Variable(torch.zeros(cur_grad.size())).cuda()
+				else:
+					name_to_param[param_name].grad = Variable(torch.zeros(cur_grad.size()))
 			name_to_param[param_name].grad.data.add_(cur_grad / 5)
 		
 		# vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.meta_net.parameters())
