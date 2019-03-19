@@ -308,7 +308,7 @@ class OneShotAug():
 			correct_this, count_this = self.evaluate_model(dataset, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
 			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")
-			if i % 50 == 5:
+			if i % 10 == 0:
 				acc_arr = np.asarray(acc_all)
 				acc_mean = np.mean(acc_arr)
 				acc_std = np.std(acc_arr)
