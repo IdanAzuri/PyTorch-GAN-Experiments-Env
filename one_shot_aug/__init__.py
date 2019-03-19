@@ -153,7 +153,7 @@ class OneShotAug():
 		avg_param = deepcopy(list(1/float(len(params_list)) * p.data for p in net.parameters()))
 		
 		#zero grads
-		for avg_p, target_p in zip(avg_param, params_list[0]):
+		for avg_p in avg_param:
 			if avg_p.grad is None:
 				if self.use_cuda:
 					avg_p.grad = Variable(torch.zeros(avg_p.size())).cuda()
