@@ -125,20 +125,20 @@ class MiniImageNetModel(nn.Module):
 		x = self.out(x)
 		return x
 		
-	def point_grad_to(self, target, is_cuda):
+	def point_grad_to(self, target_param, is_cuda, step_size):
 		'''
 		from reptile
 		Set .grad attribute of each parameter to be proportional
 		to the difference between self and target
 		'''
-		for p, target_p in zip(self.parameters(), target.parameters()):
+		for p, target_p in zip(self.parameters(), target_param.parameters()):
 			if p.grad is None:
 				if is_cuda:
 					p.grad = Variable(torch.zeros(p.size())).cuda()
 				else:
 					p.grad = Variable(torch.zeros(p.size()))
 			p.grad.data.zero_()  # not sure this is required
-			p.grad.data.add_(p.data - target_p.data)
+			p.grad.data.add_(step_size * (p.data - target_p.data))
 	
 	def clone(self, use_cuda):
 		clone = MiniImageNetModel()

@@ -141,25 +141,41 @@ class OneShotAug():
 		frac_done = current_meta_step / Config.train.meta_iters
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
-		self.average_weights(new_weights) # TODO verify this is an average weights
-		self.meta_net.point_grad_to(net, self.use_cuda)
+		self.average_weights(new_weights, net) # TODO verify this is an average weights
+		self.meta_net.point_grad_to(net, self.use_cuda, cur_meta_step_size)
 		
 		# vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.meta_net.parameters())
 		# b = list(self.net.parameters())[-1].clone()
 		# print(f"IS EQUAL {torch.equal(a.data, b.data)}")
 		# self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
-	def average_weights(self, new_weights):
-		# res = param_vector[0]
-		# for param_seq in range(1, len(param_vector)):
-		# 	res += param_seq
-		# return  res / len(param_vector) # mean
-		num_weights = len(new_weights)
-		fweights = {name: new_weights[0][name] / float(num_weights) for name in new_weights[0]}
-		for i in range(1, num_weights):
-			for name in new_weights[i]:
-				fweights[name] += new_weights[i][name] / float(num_weights)
-		return fweights
+	def average_weights(self, params_list, net):
+		avg_param = deepcopy(list(1/float(len(params_list)) * p.data for p in net.parameters()))
+		
+		#zero grads
+		for avg_p, target_p in zip(avg_param, params_list[0]):
+			if avg_p.grad is None:
+				if self.use_cuda:
+					avg_p.grad = Variable(torch.zeros(avg_p.size())).cuda()
+				else:
+					avg_p.grad = Variable(torch.zeros(avg_p.size()))
+				avg_p.grad.data.zero_()  # not sure this is required
+		#averaging
+		for i in range(1,len(params_list)):
+			for avg_p, target_p in zip(avg_param, params_list[i]):
+				avg_p.add_(1/float(len(params_list)) * target_p.data)
+		# load to model
+		for p, avg_p in zip(net.parameters(), avg_param):
+			p.data.copy_(avg_p)
+		
+		
+		
+		# num_weights = len(new_weights)
+		# fweights = {name: new_weights[0][name] / float(num_weights) for name in new_weights[0]}
+		# for i in range(1, num_weights):
+		# 	for name in new_weights[i]:
+		# 		fweights[name] += new_weights[i][name] / float(num_weights)
+		# return fweights
 	
 	def inner_train(self, fast_net, train_loader, optimizer):
 		fast_net.train()
@@ -185,9 +201,8 @@ class OneShotAug():
 			optimizer.zero_grad()
 			loss.backward()
 			optimizer.step()
-
 		
-		return fast_net.state_dict() #parameters_to_vector(net.parameters())
+		return deepcopy(list(p.data for p in fast_net.parameters()))
 	
 	def evaluate_model(self, fast_net,optimaizer,dataset, mode="total_test"):
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
