@@ -141,8 +141,14 @@ class OneShotAug():
 		frac_done = current_meta_step / Config.train.meta_iters
 		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
-		self.average_weights(new_weights, net) # TODO verify this is an average weights
-		self.meta_net.point_grad_to(net, self.use_cuda, cur_meta_step_size)
+		# self.average_weights(new_weights, net) # TODO verify this is an average weights
+		# self.meta_net.point_grad_to(net, self.use_cuda, cur_meta_step_size)
+		name_to_param = dict(self.meta_net.named_parameters())
+		for param_name, param in net.named_parameters():
+			cur_grad = (name_to_param[param_name].data - param.data) / self.num_classes * cur_meta_step_size
+			if name_to_param[param_name].grad is None:
+				name_to_param[param_name].grad = Variable(torch.zeros(cur_grad.size()))
+			name_to_param[param_name].grad.data.add_(cur_grad / 5)
 		
 		# vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.meta_net.parameters())
 		# b = list(self.net.parameters())[-1].clone()
@@ -153,7 +159,7 @@ class OneShotAug():
 		avg_param = deepcopy(list(1/float(len(params_list)) * p.data for p in net.parameters()))
 		
 		#zero grads
-		for avg_p in avg_param:
+		for avg_p in zip(avg_param, params_list[0]):
 			if avg_p.grad is None:
 				if self.use_cuda:
 					avg_p.grad = Variable(torch.zeros(avg_p.size())).cuda()
@@ -167,7 +173,6 @@ class OneShotAug():
 		# load to model
 		for p, avg_p in zip(net.parameters(), avg_param):
 			p.data.copy_(avg_p)
-		
 		
 		
 		# num_weights = len(new_weights)
