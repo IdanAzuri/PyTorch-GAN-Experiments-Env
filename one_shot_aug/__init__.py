@@ -297,7 +297,7 @@ class OneShotAug():
 		"""
 		acc_all = []
 		for i in range(num_samples):
-			correct_this, count_this = self.evaluate_model(dataset, mode="total_test")
+			correct_this, count_this = self.evaluate_model(self.meta_net, self.optimizer, dataset, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
 			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")
 			if i % 50 == 5:
