@@ -184,10 +184,7 @@ class OneShotAug():
 		for batch_idx, batch in enumerate(mini_train_loader):
 			# init value
 			inputs, labels = zip(*batch)
-			# show_image(inputs[0])
-			# show_image(inputs[1])
-			# show_image(inputs[5])
-			
+			# show_images(inputs,labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
@@ -208,7 +205,7 @@ class OneShotAug():
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		self.learn_for_eval(fast_net, optimaizer,train_set)
-		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
+		num_correct, len_set = self._test_predictions(fast_net,train_set, test_set)  # testing on only 1 sample mabye redundant
 		
 		# self.net.load_state_dict(old_model_state)  # load back model's weights
 		
@@ -222,12 +219,13 @@ class OneShotAug():
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
+			# show_images(inputs,labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
+			[l.item() for l in labels]
 			if self.use_cuda:
 				inputs = inputs.cuda()
 				labels = labels.cuda()
-			
 			# compute output
 			outputs = fast_net(inputs)
 			loss = self.loss_criterion(outputs, labels)  # measure accuracy and record loss
@@ -265,16 +263,17 @@ class OneShotAug():
 		for tag, value in summary.items():
 			self.tensorboard.scalar_summary(tag, value, step)
 	
-	def _test_predictions(self, train_set, test_set):
-		self.meta_net.eval()
+	def _test_predictions(self,fast_net, train_set, test_set):
+		fast_net.eval()
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
+		
 		if self._transductive:
 			if self.use_cuda:
 				test_inputs = Variable(torch.stack(test_inputs)).cuda()
 			else:
 				test_inputs = Variable(torch.stack(test_inputs))
-			num_correct += sum(np.argmax(self.meta_net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
+			num_correct += sum(np.argmax(fast_net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
 			return num_correct, len(test_labels)
 		res = []
 		for test_sample in test_set:
@@ -285,7 +284,7 @@ class OneShotAug():
 			else:
 				train_inputs = Variable(torch.stack(train_inputs))
 				train_inputs += Variable(torch.stack((test_sample[0],)))
-			argmax_arr = np.argmax(self.meta_net(train_inputs).cpu().detach().numpy(), axis=1)
+			argmax_arr = np.argmax(fast_net(train_inputs).cpu().detach().numpy(), axis=1)
 			res.append(argmax_arr[-1])
 		num_correct += count_correct(res, test_labels)
 		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
@@ -297,7 +296,7 @@ class OneShotAug():
 		"""
 		acc_all = []
 		for i in range(num_samples):
-			correct_this, count_this = self.evaluate_model(self.meta_net, self.optimizer, dataset, mode="total_test")
+			correct_this, count_this = self.evaluate_model(self.meta_net, self.meta_optimizer, dataset, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
 			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")
 			if i % 50 == 5:
@@ -332,4 +331,19 @@ def show_image(image):
 	# Print the image
 	plt.imshow(np.transpose(image, (1, 2, 0)), interpolation='nearest')
 	# plt.imshow(np.transpose(image, (1, 2, 0)))
+	plt.show()# Show Image
+
+def show_images(images,labels):
+	import matplotlib.pyplot as plt
+	# Convert image to numpy
+	import matplotlib.pyplot as plt
+	fig=plt.figure(figsize=(10, 10))
+	columns = 4
+	rows = 1
+	for i in range(1, columns*rows+1):
+		ax = fig.add_subplot(rows, columns, i)
+		ax.set_title(labels[i])
+		image = images[i].numpy()
+		plt.imshow(np.transpose(image, (1, 2, 0)), interpolation='nearest')
 	plt.show()
+	
