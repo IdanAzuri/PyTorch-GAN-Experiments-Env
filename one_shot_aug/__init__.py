@@ -128,10 +128,7 @@ class OneShotAug():
 			new_weights.append(self.inner_train(fast_net, train_loader,optimizer))
 			# vector_to_parameters(weights_original, self.net.parameters())
 		# self.net.load_state_dict(weights_original.state_dict())
-		frac_done = current_meta_step / Config.train.meta_iters
-		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
-		self.interpolate_new_weights(new_weights,cur_meta_step_size)
-		set_learning_rate(self.meta_optimizer,cur_meta_step_size)
+		self.interpolate_new_weights(new_weights, fast_net, current_meta_step)
 		self.meta_optimizer.step()
 		
 		# Save model parameters
@@ -139,60 +136,46 @@ class OneShotAug():
 			utils.save_checkpoint(current_meta_step, self.model_path, self.meta_net, self.meta_optimizer,state=optimizer.state_dict())
 		return  # losses.avg, top1.avg
 	
-	def interpolate_new_weights(self, new_weights,current_meta_step):
+	def interpolate_new_weights(self, new_weights, net, current_meta_step):
 		# weights_original=parameters_to_vector(weights_original)
+		frac_done = current_meta_step / Config.train.meta_iters
+		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
 		
-		
-		averaged_parameters = self.average_weights(new_weights) # TODO verify this is an average weights
-		params2 = self.meta_net.named_parameters()
-		dict_meta_net_param = dict(params2)
-		model_dict = self.meta_net.state_dict()
-		
-		for name1, param1 in averaged_parameters.items():
-			if name1 in dict_meta_net_param.keys():
-				dict_meta_net_param[name1].data.copy_(dict_meta_net_param[name1].data + (averaged_parameters[name1].data-dict_meta_net_param[name1].data))
-		model_dict.update(dict_meta_net_param)
-		self.meta_net.load_state_dict(model_dict)
-		# self.meta_net.load_state_dict(dict_meta_net_param)
-		# self.meta_net.point_grad_to(net, self.use_cuda, cur_meta_step_size)
+		self.average_weights(new_weights, net) # TODO verify this is an average weights
+		self.meta_net.point_grad_to(net, self.use_cuda, cur_meta_step_size)
 		
 		# vector_to_parameters(weights_original + (fweights-weights_original)* cur_meta_step_size, self.meta_net.parameters())
 		# b = list(self.net.parameters())[-1].clone()
 		# print(f"IS EQUAL {torch.equal(a.data, b.data)}")
 		# self.net.load_state_dict({name: weights_original[name] + ((fweights[name] - weights_original[name]) * cur_meta_step_size) for name in weights_original})
 	
-	def average_weights(self, named_params_list):
+	def average_weights(self, params_list, net):
+		avg_param = deepcopy(list(1/float(len(params_list)) * p.data for p in net.parameters()))
 		
-		num_weights = len(named_params_list)
-		fweights = {name: named_params_list[0][name] / float(num_weights) for name in named_params_list[0]}
-		for i in range(1, num_weights):
-			for name in named_params_list[i]:
-				fweights[name] += named_params_list[i][name] / float(num_weights)
-		return fweights
+		#zero grads
+		for avg_p in avg_param:
+			if avg_p.grad is None:
+				if self.use_cuda:
+					avg_p.grad = Variable(torch.zeros(avg_p.size())).cuda()
+				else:
+					avg_p.grad = Variable(torch.zeros(avg_p.size()))
+				avg_p.grad.data.zero_()  # not sure this is required
+		#averaging
+		for i in range(1,len(params_list)):
+			for avg_p, target_p in zip(avg_param, params_list[i]):
+				avg_p.add_(1/float(len(params_list)) * target_p.data)
+		# load to model
+		for p, avg_p in zip(net.parameters(), avg_param):
+			p.data.copy_(avg_p)
 		
 		
-		# avg_param = deepcopy(list(p.data / float(len(named_params_list)) for p in net.named_parameters()))
-		# params1 = net.named_parameters()
-		# params2 = model2.named_parameters()
-		#
-		# dict_params2 = dict(params2)
-		# #zero grads
-		# for avg_p in avg_param:
-		# 	if avg_p.grad is None:
-		# 		if self.use_cuda:
-		# 			avg_p.grad = Variable(torch.zeros(avg_p.size())).cuda()
-		# 		else:
-		# 			avg_p.grad = Variable(torch.zeros(avg_p.size()))
-		# 		avg_p.grad.data.zero_()  # not sure this is required
-		# #averaging
-		# for i in range(1, len(named_params_list)):
-		# 	for avg_p, target_p in zip(avg_param, named_params_list[i]):
-		# 		avg_p.add_(1 / float(len(named_params_list)) * target_p.data)
-		# # load to model
-		# for p, avg_p in zip(net.parameters(), avg_param):
-		# 	p.data.copy_(avg_p)
-		#
-		# net.load_state_dict(dict())
+		
+		# num_weights = len(new_weights)
+		# fweights = {name: new_weights[0][name] / float(num_weights) for name in new_weights[0]}
+		# for i in range(1, num_weights):
+		# 	for name in new_weights[i]:
+		# 		fweights[name] += new_weights[i][name] / float(num_weights)
+		# return fweights
 	
 	def inner_train(self, fast_net, train_loader, optimizer):
 		fast_net.train()
@@ -216,13 +199,13 @@ class OneShotAug():
 			loss.backward()
 			optimizer.step()
 		
-		return deepcopy(dict(fast_net.named_parameters()))
+		return deepcopy(list(p.data for p in fast_net.parameters()))
 	
 	def evaluate_model(self, fast_net, optimaizer, dataset, mode="total_test"):
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
-		self.learn_for_eval(fast_net, optimaizer, train_set)
-		num_correct, len_set = self._test_predictions(fast_net, train_set, test_set)  # testing on only 1 sample mabye redundant
+		self.learn_for_eval(fast_net, optimaizer,train_set)
+		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
 		
 		# self.net.load_state_dict(old_model_state)  # load back model's weights
 		
@@ -271,7 +254,7 @@ class OneShotAug():
 		return torch.nn.CrossEntropyLoss().to(self.device)
 	
 	def build_optimizers(self, classifier):
-		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate*10, betas=(0,0.999))
+		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate*2, betas=(0,0.999))
 		
 		return classifier_optimizer
 	
