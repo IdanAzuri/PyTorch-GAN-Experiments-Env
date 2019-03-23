@@ -89,20 +89,6 @@ class ImageNetClass:
 			return self._read_image(name)
 
 
-def inner_mini_batches(self, mini_dataset, inner_batch_size, inner_iters, replacement):
-	"""
-	Generate inner-loop mini-batches for the task.
-	"""
-	if self.tail_shots is None:
-		for value in _mini_batches(mini_dataset, inner_batch_size, inner_iters, replacement):
-			yield value
-		return
-	train, tail = _split_train_test(mini_dataset, test_shots=self.tail_shots)
-	for batch in _mini_batches(train, inner_batch_size, inner_iters - 1, replacement):
-		yield batch
-	yield tail
-
-
 def _sample_mini_dataset(dataset, num_classes, num_shots):
 	"""
 	Sample a few shot task from a dataset.
