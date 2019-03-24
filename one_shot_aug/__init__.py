@@ -205,7 +205,7 @@ class OneShotAug():
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		self.learn_for_eval(fast_net, optimaizer,train_set)
-		num_correct, len_set = self._test_predictions(train_set, test_set)  # testing on only 1 sample mabye redundant
+		num_correct, len_set = self._test_predictions(fast_net, train_set, test_set)  # testing on only 1 sample mabye redundant
 		
 		# self.net.load_state_dict(old_model_state)  # load back model's weights
 		
