@@ -312,7 +312,7 @@ class OneShotAug():
 		acc_all = []
 		for i in range(num_samples):
 			fast_net = self.meta_net.clone(self.use_cuda)
-			optimizer = get_optimizer(self.state)
+			optimizer = get_optimizer(fast_net,self.state)
 			correct_this, count_this = self.evaluate_model(fast_net, optimizer, dataset, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
 			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")
