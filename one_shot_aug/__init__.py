@@ -128,18 +128,20 @@ class OneShotAug():
 			new_weights.append(self.inner_train(fast_net, train_loader,optimizer))
 			# vector_to_parameters(weights_original, self.net.parameters())
 		# self.net.load_state_dict(weights_original.state_dict())
-		self.interpolate_new_weights(new_weights, fast_net, current_meta_step)
-		# self.meta_optimizer.step()
+		self.interpolate_new_weights(new_weights)
+		frac_done = current_meta_step / Config.train.meta_iters
+		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
+		set_learning_rate(self.meta_optimizer,cur_meta_step_size)
+		self.meta_optimizer.step()
 		
 		# Save model parameters
 		if current_meta_step > 0 and current_meta_step  % Config.train.save_checkpoints_steps == 0:
 			utils.save_checkpoint(current_meta_step, self.model_path, self.meta_net, self.meta_optimizer,state=optimizer.state_dict())
 		return  # losses.avg, top1.avg
 	
-	def interpolate_new_weights(self, new_weights, net, current_meta_step):
+	def interpolate_new_weights(self, new_weights):
 		# weights_original=parameters_to_vector(weights_original)
-		frac_done = current_meta_step / Config.train.meta_iters
-		cur_meta_step_size = frac_done * meta_step_size_final + (1 - frac_done) * meta_step_size
+		
 		
 		averaged_parameters = self.average_weights(new_weights) # TODO verify this is an average weights
 		params2 = self.meta_net.named_parameters()
@@ -148,7 +150,7 @@ class OneShotAug():
 		
 		for name1, param1 in averaged_parameters.items():
 			if name1 in dict_meta_net_param.keys():
-				dict_meta_net_param[name1].data.copy_(dict_meta_net_param[name1].data + (averaged_parameters[name1]-dict_meta_net_param[name1].data)*cur_meta_step_size)
+				dict_meta_net_param[name1].data.copy_(dict_meta_net_param[name1].data + (averaged_parameters[name1]-dict_meta_net_param[name1].data))
 		model_dict.update(dict_meta_net_param)
 		self.meta_net.load_state_dict(model_dict)
 		# self.meta_net.load_state_dict(dict_meta_net_param)
