@@ -271,7 +271,7 @@ class OneShotAug():
 		return torch.nn.CrossEntropyLoss().to(self.device)
 	
 	def build_optimizers(self, classifier):
-		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=(0,0.999))
+		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate*20, betas=(0,0.999))
 		
 		return classifier_optimizer
 	
