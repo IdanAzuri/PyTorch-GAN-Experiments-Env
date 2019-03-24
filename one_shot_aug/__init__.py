@@ -129,7 +129,7 @@ class OneShotAug():
 			# vector_to_parameters(weights_original, self.net.parameters())
 		# self.net.load_state_dict(weights_original.state_dict())
 		self.interpolate_new_weights(new_weights, fast_net, current_meta_step)
-		self.meta_optimizer.step()
+		# self.meta_optimizer.step()
 		
 		# Save model parameters
 		if current_meta_step > 0 and current_meta_step  % Config.train.save_checkpoints_steps == 0:
@@ -363,4 +363,7 @@ def show_images(images,labels):
 		image = images[i].numpy()
 		plt.imshow(np.transpose(image, (1, 2, 0)), interpolation='nearest')
 	plt.show()
-	
+
+def set_learning_rate(optimizer, lr):
+	for param_group in optimizer.param_groups:
+		param_group['lr'] = lr
