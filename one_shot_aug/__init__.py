@@ -305,7 +305,7 @@ class OneShotAug():
 		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
 		return num_correct, len(res)
 	
-	def evaluate(self, dataset, num_samples=10000):
+	def evaluate(self, dataset, num_samples=1000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
