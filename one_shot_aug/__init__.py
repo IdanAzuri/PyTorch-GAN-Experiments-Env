@@ -150,7 +150,7 @@ class OneShotAug():
 		
 		for name1, param1 in averaged_parameters.items():
 			if name1 in dict_meta_net_param.keys():
-				dict_meta_net_param[name1].data.copy_(dict_meta_net_param[name1].data + (averaged_parameters[name1]-dict_meta_net_param[name1].data)*current_meta_step)
+				dict_meta_net_param[name1].data.copy_(dict_meta_net_param[name1].data + (averaged_parameters[name1].data-dict_meta_net_param[name1].data))
 		model_dict.update(dict_meta_net_param)
 		self.meta_net.load_state_dict(model_dict)
 		# self.meta_net.load_state_dict(dict_meta_net_param)
@@ -239,7 +239,6 @@ class OneShotAug():
 			# show_images(inputs,labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
-			[l.item() for l in labels]
 			if self.use_cuda:
 				inputs = inputs.cuda()
 				labels = labels.cuda()
@@ -269,7 +268,7 @@ class OneShotAug():
 		return evaluation
 	
 	def build_criterion(self):
-		return torch.nn.NLLLoss().to(self.device)
+		return torch.nn.CrossEntropyLoss().to(self.device)
 	
 	def build_optimizers(self, classifier):
 		classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=self.learning_rate, betas=(0,0.999))
