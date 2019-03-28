@@ -296,7 +296,7 @@ class OneShotAug():
 		"""
 		acc_all = []
 		for i in range(num_samples):
-			fast_net = self.meta_net_base.clone(self.use_cuda)
+			fast_net = deepcopy(self.meta_net)
 			optimizer = get_optimizer(fast_net,self.state)
 			correct_this, count_this = self.evaluate_model(fast_net, optimizer, dataset, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
