@@ -79,7 +79,13 @@ class PretrainedClassifier(nn.Module):
 		outputs = self.model(inputs)
 		
 		return outputs
-
+	
+	def clone(self, use_cuda):
+		clone = PretrainedClassifier()
+		clone.model.load_state_dict(self.model.state_dict())
+		if use_cuda:
+			clone.cuda()
+		return clone
 
 class MiniImageNetModel(nn.Module):
 	"""

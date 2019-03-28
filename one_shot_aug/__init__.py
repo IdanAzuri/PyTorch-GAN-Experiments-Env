@@ -44,6 +44,7 @@ class OneShotAug():
 		# self.classifier.model.load_state_dict(torch.load(os.path.join(self.model_path + str(Config.model.name) + '.t7')))
 		if Config.model.type == "known_net":
 			self.meta_net = PretrainedClassifier()
+			self.meta_net_base = self.meta_net
 			self.title = self.meta_net.title
 			self.meta_net = self.meta_net.model
 		else:
@@ -295,7 +296,7 @@ class OneShotAug():
 		"""
 		acc_all = []
 		for i in range(num_samples):
-			fast_net = self.meta_net.clone(self.use_cuda)
+			fast_net = self.meta_net_base.clone(self.use_cuda)
 			optimizer = get_optimizer(fast_net,self.state)
 			correct_this, count_this = self.evaluate_model(fast_net, optimizer, dataset, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
