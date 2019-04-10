@@ -9,7 +9,10 @@ from torch.autograd import Variable
 from torch.backends import cudnn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.optim import lr_scheduler
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
+from AutoAugment.autoaugment import ImageNetPolicy
 from logger import Logger
 from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
@@ -100,7 +103,6 @@ class OneShotAug():
 				# self._add_summary(current_meta_step, {"top1_acc_valid": validation_acc})
 				valid_acc_eval = float(validation_num_correct) / valid_count
 				# self._add_summary(current_meta_step, {"accuracy_valid": valid_acc_eval})
-				
 				train_num_correct, train_count = self.evaluate_model(fast_net, optimizer,train_loader)
 				# self._add_summary(current_meta_step, {"loss_train": train_loss})
 				# self._add_summary(current_meta_step, {"top1_acc_train": train_acc})
@@ -245,9 +247,18 @@ class OneShotAug():
 		# Load model
 		self.prev_meta_step_count, self.meta_net, self.meta_optimizer, self.state = utils.load_saved_model(self.model_path, self.meta_net, self.build_optimizers(self.meta_net))
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
+		transform_list_test = []
+		if Config.predict.use_augmentation:
+			transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy()])
+		transform_list_test.extend([transforms.Resize(Config.data.image_size),
+		                            transforms.ToTensor(),
+		                            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+		                                                 std=[0.229, 0.224, 0.225])
+		                            ])
 		
-		test_loader = read_dataset_test(Config.data.miniimagenet_path)[0]
-		evaluation = self.evaluate(test_loader)
+		transform_test = transforms.Compose(transform_list_test)
+		test_dataset = read_dataset_test(Config.data.miniimagenet_path,transform_test)[0]
+		evaluation = self.evaluate(test_dataset)
 		print(f"Total score: {evaluation}")
 		return evaluation
 	
@@ -296,8 +307,10 @@ class OneShotAug():
 		"""
 		acc_all = []
 		for i in range(num_samples):
+			
 			fast_net = deepcopy(self.meta_net)
 			optimizer = get_optimizer(fast_net,self.state)
+			
 			correct_this, count_this = self.evaluate_model(fast_net, optimizer, dataset, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
 			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")

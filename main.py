@@ -2,6 +2,7 @@
 
 import argparse
 import atexit
+import random
 
 import utils
 from data_loader import *

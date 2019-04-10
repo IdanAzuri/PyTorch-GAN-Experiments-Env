@@ -27,7 +27,7 @@ def read_dataset_test(data_dir, transforms=None):
 	return tuple(_read_classes(os.path.join(data_dir, x), transforms) for x in ['test'])
 
 
-def read_dataset(data_dir, transforms=None):
+def read_dataset(data_dir, transform_train=None,transform_test=None):
 	"""
 	Read the Mini-ImageNet dataset.
 	Args:
@@ -36,7 +36,7 @@ def read_dataset(data_dir, transforms=None):
 	  A tuple (train, val, test) of sequences of
 		ImageNetClass instances.
 	"""
-	return tuple(_read_classes(os.path.join(data_dir, x), transforms) for x in ['train', 'val'])  # , 'test'
+	return tuple([_read_classes(os.path.join(data_dir, 'train'), transform_train),_read_classes(os.path.join(data_dir, 'val'), transform_test)])  # , 'test'
 
 
 def _read_classes(dir_path, transforms):

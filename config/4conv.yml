@@ -24,12 +24,12 @@ model:
     conv4: 128
     use_dropout: False
     dropout: 0.3
-    use_augmentation: False
     dataset: miniimagenet
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
     train_shot: 15
 train:
+    use_augmentation: False
     model_dir: "outputs/4conv"
     shuffle: true
     
@@ -49,7 +49,9 @@ train:
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
-
+    use_augmentation: False
+predict:
+    use_augmentation: False
 slack:
     webhook_url: ""  # after training notify you using slack-webhook
     

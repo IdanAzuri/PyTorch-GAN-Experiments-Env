@@ -12,52 +12,43 @@ model:
     name: "OneShotAug"
     type: "conv"
     pretrained: False
-    seed: 222
+    seed: 0
     arch: small_cnn #resnet,densenet
-    base_width: 4 #resnet params
-    cardinality: 32 # resnet params
-    depth: 29
     transductive: False
     z_dim: 100  # Random noise dimension coming into generator, per output vector
     real_dim: 1024  #$image_size * image_size
-    filters: 64
+    filters: 32
     conv1: 16
     conv2: 32
     conv3: 64
     conv4: 128
-    use_dropout: True
+    use_dropout: False
     dropout: 0.3
     use_augmentation: True
     dataset: miniimagenet
-#    total_train_classes: 65 #miniimagenet
-#    total_valid_classes: 20 #miniimagenet
-#    total_test_classes: 15 #miniimagenet
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
     train_shot: 15
 train:
     model_dir: "outputs/4conv_aug"
-    batch_size: 64
     shuffle: true
+    
     learning_rate: 0.001
+    meta_lr: 0.001
     optim_betas:
         - 0
         - 0.999
     
     save_checkpoints_steps: 1000
     verbose_step_count: 50
-    show_progrees_bar: False
-    inner_batch_size: 5 # batch size for every inner-loop training iteration.
-    inner_iters: 20 #n umber of inner-loop iterations.
-    eval_inner_iters: 50
+    inner_batch_size: 10 # batch size for every inner-loop training iteration.
+    inner_iters: 8 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
     meta_batch_size: 5 # how many inner-loops to run
-    meta_iters: 1000000 # epochs
+    meta_iters: 100000 # epochs
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
-predict:
-    batch_size: 64
 
 slack:
     webhook_url: ""  # after training notify you using slack-webhook

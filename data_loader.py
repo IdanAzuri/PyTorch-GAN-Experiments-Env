@@ -1,14 +1,12 @@
-import random
-
 import numpy as np
 import torch
-import torchvision
 from hbconfig import Config
 from sklearn.datasets import make_moons
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets
 from torchvision import transforms
 
+from AutoAugment.autoaugment import ImageNetPolicy
 from miniimagenet_loader import read_dataset
 
 
@@ -16,37 +14,41 @@ def get_loader(mode):
 	"""Builds and returns Dataloader for MNIST and SVHN dataset."""
 	global train_loader, valid_loader
 	config = Config
-	transform_list = []
+	transform_list_train = []
+	transform_list_test = []
 	is_train = mode == "train"
-	
-	if config.model.use_augmentation:
-		transform_list.extend([torchvision.transforms.ColorJitter(hue=.05, saturation=.05),
-		                       transforms.RandomResizedCrop(config.data.image_size),
-		                       transforms.RandomHorizontalFlip(p=0.2),
-		                       torchvision.transforms.RandomHorizontalFlip(),
-		                       torchvision.transforms.RandomAffine(45),
-		                       torchvision.transforms.RandomRotation(20)])
-	transform_list.extend([transforms.Resize(config.data.image_size),
+	if config.train.use_augmentation:
+		transform_list_train.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
+	transform_list_train.extend([transforms.Resize(config.data.image_size),
 	                       transforms.ToTensor(),
-	                       # transforms.Normalize(mean=[0.485, 0.456, 0.406],
-	                       #                      std=[0.229, 0.224, 0.225])
+	                       transforms.Normalize(mean=[0.485, 0.456, 0.406],
+	                                            std=[0.229, 0.224, 0.225])
 	                       ])
 	
-	transform = transforms.Compose(transform_list)
+	transform_train = transforms.Compose(transform_list_train)
 	
+	if config.predict.use_augmentation:
+		transform_list_test.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
+	transform_list_test.extend([transforms.Resize(config.data.image_size),
+	                             transforms.ToTensor(),
+	                             transforms.Normalize(mean=[0.485, 0.456, 0.406],
+	                                                  std=[0.229, 0.224, 0.225])
+	                             ])
+	
+	transform_test = transforms.Compose(transform_list_test)
 	if config.model.dataset == "mnist":
-		mnist = datasets.MNIST(root=config.data.mnist_path, download=True, transform=transform, train=is_train)
+		mnist = datasets.MNIST(root=config.data.mnist_path, download=True, transform=transform_train, train=is_train)
 		# train-validation split
 		train_mnist, valid_mnist = train_valid_split(mnist)
 		train_loader = DataLoader(dataset=train_mnist, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_mnist, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	if config.model.dataset == "svhn":
-		svhn = datasets.SVHN(root=config.data.svhn_path, download=True, transform=transform, split=mode)
+		svhn = datasets.SVHN(root=config.data.svhn_path, download=True, transform=transform_train, split=mode)
 		train_svhn, valid_svhn = train_valid_split(svhn)
 		train_loader = DataLoader(dataset=train_svhn, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_svhn, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	if config.model.dataset == "cifar10":
-		cifar10 = datasets.CIFAR10(root=config.data.cifar10_path, download=True, transform=transform, train=is_train)
+		cifar10 = datasets.CIFAR10(root=config.data.cifar10_path, download=True, transform=transform_train, train=is_train)
 		train_cifar, valid_cifar = train_valid_split(cifar10)
 		train_loader = DataLoader(dataset=train_cifar, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_cifar, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
@@ -55,15 +57,15 @@ def get_loader(mode):
 		train_loader = DataLoader(dataset=train_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_moons, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	if config.model.dataset == "miniimagenet":
-		train_loader, valid_loader = read_dataset(Config.data.miniimagenet_path,transform)
-		# transform(train_loader)
-	if config.model.dataset == "miniimagenet_all":
-		train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform)
-		valid_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform)
-		# test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
-		train_loader = DataLoader(dataset=train_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
-		valid_loader = DataLoader(dataset=valid_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
-		# test_loader = DataLoader(dataset=test_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+		train_loader, valid_loader = read_dataset(Config.data.miniimagenet_path,transform_train,transform_test)
+		# transform_train(train_loader)
+	# if config.model.dataset == "miniimagenet_all":
+	# 	train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_train)
+	# 	valid_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_list_test)
+	# 	# test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
+	# 	train_loader = DataLoader(dataset=train_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+	# 	valid_loader = DataLoader(dataset=valid_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+	# 	# test_loader = DataLoader(dataset=test_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	return train_loader, valid_loader
 
 
