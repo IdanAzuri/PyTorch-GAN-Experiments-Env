@@ -15,7 +15,7 @@ from torchvision.transforms import transforms
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-def read_dataset_test(data_dir, transforms=None):
+def read_dataset_test(data_dir,transform=None):
 	"""
 	Read the Mini-ImageNet dataset.
 	Args:
@@ -24,7 +24,8 @@ def read_dataset_test(data_dir, transforms=None):
 	  A tuple (train, val, test) of sequences of
 		ImageNetClass instances.
 	"""
-	return tuple(_read_classes(os.path.join(data_dir, x), transforms) for x in ['test'])
+	return _read_classes(os.path.join(data_dir, 'test'), transform)
+
 
 
 def read_dataset(data_dir, transform_train=None,transform_test=None):
@@ -59,7 +60,7 @@ class ImageNetClass:
 		if transform is None:
 			self.transform = transforms.Compose(
 				[transforms.Resize(Config.data.image_size),
-				 transforms.ToTensor(),
+				 # transforms.ToTensor(),
 				 # transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 				 ])
 	def __len__(self):

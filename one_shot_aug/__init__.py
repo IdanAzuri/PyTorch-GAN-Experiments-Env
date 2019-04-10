@@ -11,6 +11,7 @@ from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torchvision.transforms import ToTensor
 
 from AutoAugment.autoaugment import ImageNetPolicy
 from logger import Logger
@@ -24,6 +25,25 @@ from . import utils
 meta_step_size = 1.  # stepsize of outer optimization, i.e., meta-optimization
 meta_step_size_final = 0.
 
+
+def augments_dataset(batch, k =5):
+	import matplotlib.pyplot as plt
+	
+	images= []
+	# labels=[]
+	for _ in range(k):
+		for img_,label in batch:
+			policy = ImageNetPolicy()
+			transformed = policy(img_)
+			# f, (ax1, ax2) = plt.subplots(1, 2, figsize=(10,6))
+			# ax1.imshow(img_)
+			# ax2.imshow(transformed[0])
+			# plt.show()
+			tensor=ToTensor()
+			images.append((tensor(transformed[0]),label))
+			# labels.append(label)
+		images.append((tensor(img_),label))
+	return images
 
 class OneShotAug():
 	model_name = "OneShotAug"
@@ -207,6 +227,7 @@ class OneShotAug():
 	def evaluate_model(self, fast_net, optimaizer, dataset, mode="total_test"):
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
 		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
+		
 		self.learn_for_eval(fast_net, optimaizer,train_set)
 		num_correct, len_set = self._test_predictions(fast_net, train_set, test_set)  # testing on only 1 sample mabye redundant
 		
@@ -221,8 +242,9 @@ class OneShotAug():
 		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
-			inputs, labels = zip(*batch)
-			# show_images(inputs,labels)
+			augmented_dataset = augments_dataset(batch)
+			inputs, labels =  zip(*augmented_dataset)
+			# show_images(inputs, labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
@@ -248,16 +270,16 @@ class OneShotAug():
 		self.prev_meta_step_count, self.meta_net, self.meta_optimizer, self.state = utils.load_saved_model(self.model_path, self.meta_net, self.build_optimizers(self.meta_net))
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		transform_list_test = []
-		if Config.predict.use_augmentation:
-			transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy()])
-		transform_list_test.extend([transforms.Resize(Config.data.image_size),
-		                            transforms.ToTensor(),
-		                            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-		                                                 std=[0.229, 0.224, 0.225])
-		                            ])
+		# if Config.predict.use_augmentation:
+		# 	transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy(Config.predict.num_sample_augmentation)])
+		# transform_list_test.extend([transforms.Resize(Config.data.image_size),
+		#                             transforms.ToTensor(),
+		#                             transforms.Normalize(mean=[0.485, 0.456, 0.406],
+		#                                                  std=[0.229, 0.224, 0.225])
+		#                             ])
 		
-		transform_test = transforms.Compose(transform_list_test)
-		test_dataset = read_dataset_test(Config.data.miniimagenet_path,transform_test)[0]
+		# transform_test = transforms.Compose(transform_list_test)
+		test_dataset = read_dataset_test(Config.data.miniimagenet_path)
 		evaluation = self.evaluate(test_dataset)
 		print(f"Total score: {evaluation}")
 		return evaluation
@@ -354,7 +376,7 @@ def show_images(images,labels):
 	import matplotlib.pyplot as plt
 	fig=plt.figure(figsize=(10, 10))
 	columns = 4
-	rows = 1
+	rows = 5
 	for i in range(1, columns*rows+1):
 		ax = fig.add_subplot(rows, columns, i)
 		ax.set_title(labels[i])
