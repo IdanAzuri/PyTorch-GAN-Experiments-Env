@@ -11,7 +11,11 @@ import random
 
 from PIL import Image, ImageFile
 from hbconfig import Config
-from torchvision.transforms import transforms
+from torchvision.transforms import transforms, ToTensor
+
+from AutoAugment.autoaugment import ImageNetPolicy
+
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -111,17 +115,20 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 	  An iterable of sequences of (input, label) pairs,
 		where each sequence is a mini-batch.
 	"""
+	totensor= ToTensor()
 	samples = list(samples)
 	if replacement:
 		for _ in range(num_batches):
-			yield random.sample(samples, batch_size)
+
+			yield random.sample(totensor(samples), batch_size)
 		return
 	cur_batch = []
 	batch_count = 0
 	while True:
 		random.shuffle(samples)
 		for sample in samples:
-			cur_batch.append(sample)
+
+			cur_batch.append(totensor(sample[0]))
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch
@@ -130,7 +137,32 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 			if batch_count == num_batches:
 				return
 
-
+def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement,num_aug=5):
+	policy = ImageNetPolicy()
+	totensor = ToTensor()
+	samples = list(samples)
+	if replacement:
+		for _ in range(num_batches):
+				for x in  samples:
+					samples=[(totensor(policy(x[0])),x[1]) for _ in range(num_aug)]
+				yield random.sample(samples, batch_size)
+		return
+	cur_batch = []
+	batch_count = 0
+	while True:
+		random.shuffle(samples)
+		for sample in samples:
+			if isinstance(sample[0], list):
+				sample = (sample[0],sample[1])
+			new_samples=[(totensor(policy(sample[0])[0]),sample[1]) for _ in range(num_aug)]
+			cur_batch.extend(new_samples)
+			if len(cur_batch)//num_aug < batch_size:
+				continue
+			yield cur_batch
+			cur_batch = []
+			batch_count += 1
+			if batch_count == num_batches:
+				return
 
 def _split_train_test(samples, test_shots=1):
 	"""
@@ -157,4 +189,5 @@ def _split_train_test(samples, test_shots=1):
 		raise IndexError('not enough examples of each class for test set')
 	return train_set, test_set
 
-#TODO 1.check test_predictin method 2.update meta-optimizer
+#TODO 1. check test_predictin method
+#     2. update meta-optimizer

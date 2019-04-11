@@ -15,7 +15,7 @@ from torchvision.transforms import ToTensor
 
 from AutoAugment.autoaugment import ImageNetPolicy
 from logger import Logger
-from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test
+from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test, _mini_batches_with_augmentation
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
 from utils import saving_config
@@ -231,7 +231,7 @@ class OneShotAug():
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
 		train_set_imgs, _ = _split_train_test(_sample_mini_dataset(dataset[0], self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		train_set_tensors, test_set_tensors = _split_train_test(_sample_mini_dataset(dataset[1], self.num_classes, self.num_shots + 1))  # 1 more sample for train
-		self.learn_for_eval(fast_net, optimaizer,train_set_imgs)
+		self.learn_for_eval(fast_net, optimaizer,(train_set_imgs))
 		num_correct, len_set = self._test_predictions(fast_net, train_set_tensors, test_set_tensors)  # testing on only 1 sample mabye redundant
 		
 		# self.net.load_state_dict(old_model_state)  # load back model's weights
@@ -242,14 +242,14 @@ class OneShotAug():
 	
 	def learn_for_eval(self, fast_net, optimaizer, train_set):
 		fast_net.train()
-		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
+		is_augment = Config.predict.use_augmentation
+		if is_augment:
+			mini_batches = _mini_batches_with_augmentation(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
+		# else:
+		# 	mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
-			if Config.predict.use_augmentation:
-				augmented_dataset = augments_dataset(batch)
-				inputs, labels =  zip(*augmented_dataset)
-			else:
-				inputs, labels =  zip(*batch)
+			inputs, labels = zip(*batch)
 			# show_images(inputs, labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
