@@ -245,8 +245,8 @@ class OneShotAug():
 		is_augment = Config.predict.use_augmentation
 		if is_augment:
 			mini_batches = _mini_batches_with_augmentation(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
-		# else:
-		# 	mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
+		else:
+			mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
