@@ -42,8 +42,8 @@ def augments_dataset(batch, k =5):
 			tensor=ToTensor()
 			if isinstance(transformed, (list,)):
 				images.append((tensor(transformed[0]),label))
-		else:
-			images.append((tensor(transformed),label))
+			else:
+				images.append((tensor(transformed),label))
 			# labels.append(label)
 		images.append((tensor(img_),label))
 	return images
@@ -245,8 +245,11 @@ class OneShotAug():
 		mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
-			augmented_dataset = augments_dataset(batch)
-			inputs, labels =  zip(*augmented_dataset)
+			if Config.predict.use_augmentation:
+				augmented_dataset = augments_dataset(batch)
+				inputs, labels =  zip(*augmented_dataset)
+			else:
+				inputs, labels =  zip(*batch)
 			# show_images(inputs, labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
