@@ -17,7 +17,7 @@ from AutoAugment.autoaugment import ImageNetPolicy
 
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
+totensor = ToTensor()
 
 def read_dataset_test(data_dir, transforms=None):
 	"""
@@ -127,8 +127,7 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 	while True:
 		random.shuffle(samples)
 		for sample in samples:
-
-			cur_batch.append(totensor(sample[0]))
+			cur_batch.append((totensor(sample[0]),sample[1]))
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch
@@ -139,7 +138,6 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 
 def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement,num_aug=5):
 	policy = ImageNetPolicy()
-	totensor = ToTensor()
 	samples = list(samples)
 	if replacement:
 		for _ in range(num_batches):
