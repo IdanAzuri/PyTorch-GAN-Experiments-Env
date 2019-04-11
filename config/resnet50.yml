@@ -47,6 +47,7 @@ train:
     replacement: False # sample with replacement.
     meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs
+    meta_lr: 0.001
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
