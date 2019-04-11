@@ -40,7 +40,10 @@ def augments_dataset(batch, k =5):
 			# ax2.imshow(transformed[0])
 			# plt.show()
 			tensor=ToTensor()
-			images.append((tensor(transformed[0]),label))
+			if isinstance(transformed, (list,)):
+				images.append((tensor(transformed[0]),label))
+		else:
+			images.append((tensor(transformed),label))
 			# labels.append(label)
 		images.append((tensor(img_),label))
 	return images
@@ -226,10 +229,10 @@ class OneShotAug():
 	
 	def evaluate_model(self, fast_net, optimaizer, dataset, mode="total_test"):
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
-		train_set, test_set = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
-		
-		self.learn_for_eval(fast_net, optimaizer,train_set)
-		num_correct, len_set = self._test_predictions(fast_net, train_set, test_set)  # testing on only 1 sample mabye redundant
+		train_set_imgs, _ = _split_train_test(_sample_mini_dataset(dataset[0], self.num_classes, self.num_shots + 1))  # 1 more sample for train
+		train_set_tensors, test_set_tensors = _split_train_test(_sample_mini_dataset(dataset[1], self.num_classes, self.num_shots + 1))  # 1 more sample for train
+		self.learn_for_eval(fast_net, optimaizer,train_set_imgs)
+		num_correct, len_set = self._test_predictions(fast_net, train_set_tensors, test_set_tensors)  # testing on only 1 sample mabye redundant
 		
 		# self.net.load_state_dict(old_model_state)  # load back model's weights
 		
@@ -271,16 +274,16 @@ class OneShotAug():
 		print(f"Model has been loaded step:{self.prev_meta_step_count}, path:{self.model_path}")
 		transform_list_test = []
 		# if Config.predict.use_augmentation:
-		# 	transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy(Config.predict.num_sample_augmentation)])
-		# transform_list_test.extend([transforms.Resize(Config.data.image_size),
-		#                             transforms.ToTensor(),
-		#                             transforms.Normalize(mean=[0.485, 0.456, 0.406],
-		#                                                  std=[0.229, 0.224, 0.225])
-		#                             ])
+		# transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy(Config.predict.num_sample_augmentation)])
+		transform_list_test.extend([transforms.Resize(Config.data.image_size),
+		                            transforms.ToTensor(),
+		                            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+		                                                 std=[0.229, 0.224, 0.225])
+		                            ])
 		
-		# transform_test = transforms.Compose(transform_list_test)
-		test_dataset = read_dataset_test(Config.data.miniimagenet_path)
-		evaluation = self.evaluate(test_dataset)
+		transform_test = transforms.Compose(transform_list_test)
+		test_dataset_tesnors,test_dataset_imgs = read_dataset_test(Config.data.miniimagenet_path,transform_test)
+		evaluation = self.evaluate(test_dataset_imgs,test_dataset_tesnors)
 		print(f"Total score: {evaluation}")
 		return evaluation
 	
@@ -323,7 +326,7 @@ class OneShotAug():
 		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
 		return num_correct, len(res)
 	
-	def evaluate(self, dataset, num_samples=10000):
+	def evaluate(self, dataset_tesnsors,dataset_imgs, num_samples=10000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
@@ -333,7 +336,7 @@ class OneShotAug():
 			fast_net = deepcopy(self.meta_net)
 			optimizer = get_optimizer(fast_net,self.state)
 			
-			correct_this, count_this = self.evaluate_model(fast_net, optimizer, dataset, mode="total_test")
+			correct_this, count_this = self.evaluate_model(fast_net, optimizer, (dataset_tesnsors,dataset_imgs), mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
 			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")
 			if i % 50 == 5:
