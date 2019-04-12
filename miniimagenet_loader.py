@@ -139,28 +139,29 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement,num_aug=5):
 	policy = ImageNetPolicy()
 	samples = list(samples)
+	cur_batch = []
 	if replacement:
 		for _ in range(num_batches):
+			for _ in range(num_aug):
 				for x in  samples:
-					samples=[(totensor(policy(x[0])),x[1]) for _ in range(num_aug)]
-				yield random.sample(samples, batch_size)
+					cur_batch.append((totensor(policy(x[0])),x[1]))
+			yield random.sample(cur_batch, batch_size)
 		return
-	cur_batch = []
 	batch_count = 0
 	while True:
 		random.shuffle(samples)
-		for sample in samples:
-			if isinstance(sample[0], list):
-				sample = (sample[0],sample[1])
-			new_samples=[(totensor(policy(sample[0])[0]),sample[1]) for _ in range(num_aug)]
-			cur_batch.extend(new_samples)
-			if len(cur_batch)//num_aug < batch_size:
-				continue
-			yield cur_batch
-			cur_batch = []
-			batch_count += 1
-			if batch_count == num_batches:
-				return
+		for _ in range(num_aug):
+			for sample in samples:
+				if isinstance(sample[0], list):
+					sample = (sample[0],sample[1])
+				cur_batch.append((totensor(policy(sample[0])[0]),sample[1]))
+		if len(cur_batch)//num_aug < batch_size:
+			continue
+		yield cur_batch
+		cur_batch = []
+		batch_count += 1
+		if batch_count == num_batches:
+			return
 
 def _split_train_test(samples, test_shots=1):
 	"""
