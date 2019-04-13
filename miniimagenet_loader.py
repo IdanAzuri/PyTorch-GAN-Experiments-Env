@@ -154,9 +154,10 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 			for sample in samples:
 				if isinstance(sample[0], list):
 					sample = (sample[0],sample[1])
-				cur_batch.append((totensor(policy(sample[0])),sample[1]))
-		if cur_batch < batch_size:
+				cur_batch.append((totensor(policy(sample[0])[0]),sample[1]))
+		if len(cur_batch) < batch_size:
 			continue
+		random.shuffle(cur_batch)
 		yield cur_batch
 		cur_batch = []
 		batch_count += 1
@@ -187,6 +188,3 @@ def _split_train_test(samples, test_shots=1):
 	if len(test_set) < len(labels) * test_shots:
 		raise IndexError('not enough examples of each class for test set')
 	return train_set, test_set
-
-#TODO 1. check test_predictin method
-#     2. update meta-optimizer
