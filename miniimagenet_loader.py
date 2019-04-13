@@ -119,7 +119,6 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 	samples = list(samples)
 	if replacement:
 		for _ in range(num_batches):
-
 			yield random.sample(totensor(samples), batch_size)
 		return
 	cur_batch = []

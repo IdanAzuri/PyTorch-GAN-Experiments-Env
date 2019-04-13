@@ -15,7 +15,7 @@ model:
     seed: 222
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
-    transductive: False
+    transductive: True
 #    base_width: 4 #resnet params
 #    cardinality: 32 # resnet params
 #    depth: 29

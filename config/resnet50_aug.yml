@@ -15,7 +15,7 @@ model:
     seed: 222
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
-    transductive: False
+    transductive: True
     use_dropout: False
     dropout: 0.3
     use_augmentation: True
