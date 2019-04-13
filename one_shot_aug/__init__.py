@@ -280,8 +280,8 @@ class OneShotAug():
 		# transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy(Config.predict.num_sample_augmentation)])
 		transform_list_test.extend([transforms.Resize(Config.data.image_size),
 		                            transforms.ToTensor(),
-		                            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-		                                                 std=[0.229, 0.224, 0.225])
+		                            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+		                            #                      std=[0.229, 0.224, 0.225])
 		                            ])
 		
 		transform_test = transforms.Compose(transform_list_test)

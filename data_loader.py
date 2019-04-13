@@ -21,8 +21,8 @@ def get_loader(mode):
 		transform_list_train.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
 	transform_list_train.extend([transforms.Resize(config.data.image_size),
 	                       transforms.ToTensor(),
-	                       transforms.Normalize(mean=[0.485, 0.456, 0.406],
-	                                            std=[0.229, 0.224, 0.225])
+	                       # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+	                       #                      std=[0.229, 0.224, 0.225])
 	                       ])
 	
 	transform_train = transforms.Compose(transform_list_train)
@@ -31,8 +31,8 @@ def get_loader(mode):
 		transform_list_test.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
 	transform_list_test.extend([transforms.Resize(config.data.image_size),
 	                             transforms.ToTensor(),
-	                             transforms.Normalize(mean=[0.485, 0.456, 0.406],
-	                                                  std=[0.229, 0.224, 0.225])
+	                             # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+	                                                  # std=[0.229, 0.224, 0.225])
 	                             ])
 	
 	transform_test = transforms.Compose(transform_list_test)
