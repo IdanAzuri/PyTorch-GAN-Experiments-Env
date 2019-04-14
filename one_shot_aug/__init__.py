@@ -54,7 +54,7 @@ def pil_images_to_tensors(inputs):
 	policy = ImageNetPolicy()
 	tensors=[]
 	for img in inputs:
-		tensors.append(totensor(policy(img)[0]))
+		tensors.append(totensor(policy(img)))
 	return tensors
 
 
