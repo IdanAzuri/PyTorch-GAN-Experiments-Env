@@ -29,7 +29,7 @@ model:
     train_shot: 15
 train:
     use_augmentation: False
-    model_dir: "outputs/pretrained_resnet_50"
+    model_dir: "outputs/resnet_50"
     batch_size: 64
     shuffle: true
     
