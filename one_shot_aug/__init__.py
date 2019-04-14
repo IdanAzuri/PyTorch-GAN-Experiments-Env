@@ -51,10 +51,11 @@ def augments_dataset(batch, k =5):
 
 def pil_images_to_tensors(inputs):
 	totensor = ToTensor()
-	policy = ImageNetPolicy()
+	# policy = ImageNetPolicy(num_samples=5)
 	tensors=[]
 	for img in inputs:
-		tensors.append(totensor(policy(img)))
+		
+		tensors.append(totensor(img))
 	return tensors
 
 
@@ -343,6 +344,8 @@ class OneShotAug():
 		Evaluate a model on a dataset. Final test!
 		"""
 		acc_all = []
+		self.logger = Logger(os.path.join(self.c_path, 'log_predict.txt'), title=self.title)
+		self.logger.set_names(['step',  'Accuracy', 'StdError'])
 		for i in range(num_samples):
 			
 			fast_net = deepcopy(self.meta_net)
@@ -356,6 +359,7 @@ class OneShotAug():
 				acc_mean = np.mean(acc_arr)
 				acc_std = np.std(acc_arr)
 				print('Step:%d | Test Acc:%4.2f%% +-%4.2f%%' % (i, acc_mean, 1.96 * acc_std / np.sqrt(i)))
+				self.logger.append([i, acc_mean, 1.96 * acc_std / np.sqrt(i) ])
 		
 		return acc_mean
 	
@@ -389,13 +393,14 @@ def show_images(images,labels):
 	import matplotlib.pyplot as plt
 	# Convert image to numpy
 	import matplotlib.pyplot as plt
+	
 	fig=plt.figure(figsize=(10, 10))
-	columns = 4
-	rows = 5
+	rows = len(labels) // 5
+	columns = 5
 	for i in range(1, columns*rows+1):
 		ax = fig.add_subplot(rows, columns, i)
-		ax.set_title(labels[i])
-		image = images[i].numpy()
+		ax.set_title(labels[i-1])
+		image = images[i-1].numpy()
 		plt.imshow(np.transpose(image, (1, 2, 0)), interpolation='nearest')
 	plt.show()
 

@@ -149,9 +149,12 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 	batch_count = 0
 	while True:
 		random.shuffle(samples)
-		for _ in range(num_aug):
+		for idx in range(num_aug):
 			for sample in samples:
-				cur_batch.append((totensor(policy(sample[0])[0]),sample[1]))
+				if idx == 0:
+					cur_batch.append((totensor(sample[0]),sample[1]))
+				else:
+					cur_batch.append((totensor(policy(sample[0])),sample[1]))
 		if len(cur_batch) < batch_size:
 			continue
 		yield cur_batch

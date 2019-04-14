@@ -30,7 +30,7 @@ model:
     train_shot: 15
 train:
     use_augmentation: False
-    model_dir: "outputs/4conv"
+    model_dir: "outputs/4conv_aug"
     shuffle: true
     
     learning_rate: 0.001
@@ -47,7 +47,7 @@ train:
     meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs
 eval:
-    eval_inner_iters: 50
+    eval_inner_iters: 5
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
     use_augmentation: False
 predict:
