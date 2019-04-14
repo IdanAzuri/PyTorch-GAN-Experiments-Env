@@ -34,7 +34,7 @@ train:
     batch_size: 64
     shuffle: true
     
-    learning_rate: 0.002  # 2e-4
+    learning_rate: 0.001  # 2e-4
     meta_lr: 0.001
     optim_betas:
         - 0

@@ -34,7 +34,7 @@ train:
     batch_size: 64
     shuffle: true
     
-    learning_rate: 0.002  # 2e-4
+    learning_rate: 0.001  # 2e-4
     meta_lr: 0.001
     optim_betas:
         - 0
@@ -49,7 +49,7 @@ train:
     meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs
 eval:
-    eval_inner_iters: 50
+    eval_inner_iters: 5
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
 predict:
     use_augmentation: True

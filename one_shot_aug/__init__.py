@@ -24,7 +24,7 @@ from . import utils
 
 meta_step_size = 1.  # stepsize of outer optimization, i.e., meta-optimization
 meta_step_size_final = 0.
-
+tensor=ToTensor()
 
 def augments_dataset(batch, k =5):
 	import matplotlib.pyplot as plt
@@ -47,6 +47,16 @@ def augments_dataset(batch, k =5):
 			# labels.append(label)
 		images.append((tensor(img_),label))
 	return images
+
+
+def pil_images_to_tensors(inputs):
+	totensor = ToTensor()
+	policy = ImageNetPolicy()
+	tensors=[]
+	for img in inputs:
+		tensors.append(totensor(policy(img)[0]))
+	return tensors
+
 
 class OneShotAug():
 	model_name = "OneShotAug"
@@ -229,10 +239,9 @@ class OneShotAug():
 	
 	def evaluate_model(self, fast_net, optimaizer, dataset, mode="total_test"):
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
-		train_set_imgs, _ = _split_train_test(_sample_mini_dataset(dataset[0], self.num_classes, self.num_shots + 1))  # 1 more sample for train
-		train_set_tensors, test_set_tensors = _split_train_test(_sample_mini_dataset(dataset[1], self.num_classes, self.num_shots + 1))  # 1 more sample for train
+		train_set_imgs, test_set_imgs = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
 		self.learn_for_eval(fast_net, optimaizer,(train_set_imgs))
-		num_correct, len_set = self._test_predictions(fast_net, train_set_tensors, test_set_tensors)  # testing on only 1 sample mabye redundant
+		num_correct, len_set = self._test_predictions(fast_net, train_set_imgs, test_set_imgs)  # testing on only 1 sample mabye redundant
 		
 		# self.net.load_state_dict(old_model_state)  # load back model's weights
 		
@@ -279,14 +288,14 @@ class OneShotAug():
 		# if Config.predict.use_augmentation:
 		# transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy(Config.predict.num_sample_augmentation)])
 		transform_list_test.extend([transforms.Resize(Config.data.image_size),
-		                            transforms.ToTensor(),
+		                            # transforms.ToTensor(),
 		                            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
 		                            #                      std=[0.229, 0.224, 0.225])
 		                            ])
 		
 		transform_test = transforms.Compose(transform_list_test)
-		test_dataset_tesnors,test_dataset_imgs = read_dataset_test(Config.data.miniimagenet_path,transform_test)
-		evaluation = self.evaluate(test_dataset_imgs,test_dataset_tesnors)
+		test_dataset_imgs = read_dataset_test(Config.data.miniimagenet_path,transform_test)[0]
+		evaluation = self.evaluate(test_dataset_imgs)
 		print(f"Total score: {evaluation}")
 		return evaluation
 	
@@ -306,30 +315,30 @@ class OneShotAug():
 		fast_net.eval()
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
-		
+		test_inputs_tensors = pil_images_to_tensors(test_inputs)
 		if self._transductive:
 			if self.use_cuda:
-				test_inputs = Variable(torch.stack(test_inputs)).cuda()
+				test_inputs_variables = Variable(torch.stack(test_inputs_tensors)).cuda()
 			else:
-				test_inputs = Variable(torch.stack(test_inputs))
-			num_correct += sum(np.argmax(fast_net(test_inputs).cpu().detach().numpy(), axis=1) == test_labels)
+				test_inputs_variables = Variable(torch.stack(test_inputs_tensors))
+			num_correct += sum(np.argmax(fast_net(test_inputs_variables).cpu().detach().numpy(), axis=1) == test_labels)
 			return num_correct, len(test_labels)
 		res = []
 		for test_sample in test_set:
 			train_inputs, train_labels = zip(*train_set)
 			if self.use_cuda:
-				train_inputs = Variable(torch.stack(train_inputs)).cuda()
-				train_inputs += Variable(torch.stack((test_sample[0],))).cuda()
+				test_inputs_variables = Variable(torch.stack(train_inputs)).cuda()
+				test_inputs_variables += Variable(torch.stack((test_sample[0],))).cuda()
 			else:
-				train_inputs = Variable(torch.stack(train_inputs))
-				train_inputs += Variable(torch.stack((test_sample[0],)))
-			argmax_arr = np.argmax(fast_net(train_inputs).cpu().detach().numpy(), axis=1)
+				test_inputs_variables = Variable(torch.stack(train_inputs))
+				test_inputs_variables += Variable(torch.stack((test_sample[0],)))
+			argmax_arr = np.argmax(fast_net(test_inputs_variables).cpu().detach().numpy(), axis=1)
 			res.append(argmax_arr[-1])
 		num_correct += count_correct(res, test_labels)
 		# res.append(np.argmax(self.net(inputs).cpu().detach().numpy(), axis=1))
 		return num_correct, len(res)
 	
-	def evaluate(self, dataset_tesnsors,dataset_imgs, num_samples=10000):
+	def evaluate(self,dataset_imgs, num_samples=10000):
 		"""
 		Evaluate a model on a dataset. Final test!
 		"""
@@ -339,7 +348,7 @@ class OneShotAug():
 			fast_net = deepcopy(self.meta_net)
 			optimizer = get_optimizer(fast_net,self.state)
 			
-			correct_this, count_this = self.evaluate_model(fast_net, optimizer, (dataset_tesnsors,dataset_imgs), mode="total_test")
+			correct_this, count_this = self.evaluate_model(fast_net, optimizer,dataset_imgs, mode="total_test")
 			acc_all.append(correct_this / count_this * 100)
 			# print(f"eval: step:{i}, current_currect:{correct_this}, total_query:{count_this}")
 			if i % 50 == 5:
@@ -351,7 +360,7 @@ class OneShotAug():
 		return acc_mean
 	
 def get_optimizer(net, state=None):
-	optimizer = torch.optim.Adam(net.parameters(), lr=Config.train.learning_rate, betas=(0, 0.999))
+	optimizer = torch.optim.Adam(net.parameters(), lr=Config.train.learning_rate, betas=(Config.train.optim_betas))
 	if state is not None:
 		optimizer.load_state_dict(state)
 	return optimizer

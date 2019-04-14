@@ -28,7 +28,7 @@ def read_dataset_test(data_dir, transforms=None):
 	  A tuple (train, val, test) of sequences of
 		ImageNetClass instances.
 	"""
-	return tuple([_read_classes(os.path.join(data_dir, 'test'), transforms),_read_classes(os.path.join(data_dir, 'test'), None)])  # , 'test'
+	return tuple([_read_classes(os.path.join(data_dir, 'test'), transforms)])
 
 
 
@@ -151,12 +151,9 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 		random.shuffle(samples)
 		for _ in range(num_aug):
 			for sample in samples:
-				if isinstance(sample[0], list):
-					sample = (sample[0],sample[1])
 				cur_batch.append((totensor(policy(sample[0])[0]),sample[1]))
 		if len(cur_batch) < batch_size:
 			continue
-		random.shuffle(cur_batch)
 		yield cur_batch
 		cur_batch = []
 		batch_count += 1
