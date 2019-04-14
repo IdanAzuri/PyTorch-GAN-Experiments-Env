@@ -12,7 +12,7 @@ model:
     name: "OneShotAug"
     type: "known_net"
     pretrained: True
-    seed: 222
+    seed: 0
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
     transductive: True
@@ -49,7 +49,7 @@ train:
     meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs
 eval:
-    eval_inner_iters: 5
+    eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
 predict:
     use_augmentation: True

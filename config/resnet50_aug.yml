@@ -12,9 +12,8 @@ model:
     name: "OneShotAug"
     type: "known_net"
     pretrained: False
-    seed: 222
+    seed: 0
     arch: resnet50 #i.e. resnet,densenet
-    filters: 64
     transductive: True
     use_dropout: False
     dropout: 0.3

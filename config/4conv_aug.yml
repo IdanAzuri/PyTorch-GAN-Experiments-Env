@@ -15,8 +15,6 @@ model:
     seed: 0
     arch: small_cnn #resnet,densenet
     transductive: True
-    z_dim: 100  # Random noise dimension coming into generator, per output vector
-    real_dim: 1024  #$image_size * image_size
     filters: 32
     conv1: 16
     conv2: 32
@@ -41,8 +39,8 @@ train:
     
     save_checkpoints_steps: 1000
     verbose_step_count: 50
-    inner_batch_size: 10 # batch size for every inner-loop training iteration.
-    inner_iters: 8 #n umber of inner-loop iterations.
+    inner_batch_size: 8 # batch size for every inner-loop training iteration.
+    inner_iters: 10 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
     meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs

@@ -19,6 +19,8 @@ source /cs/labs/daphna/idan.azuri/venv3.6/bin/activate
 
 
 if [ $SLURM_ARRAY_TASK_ID -eq 0 ]; then
+echo $SLURM_ARRAY_TASK_ID
+
 python3 main.py --config 4conv --mode predict
 fi
 
@@ -28,15 +30,27 @@ echo $SLURM_ARRAY_TASK_ID
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 2 ]; then
+echo $SLURM_ARRAY_TASK_ID
+
 python3 main.py --config pretrained_resnet50_aug --mode predict
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 3 ]; then
+echo $SLURM_ARRAY_TASK_ID
+
 python3 main.py --config pretrained_vgg19_bn_2 --mode predict
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 4 ]; then
+echo $SLURM_ARRAY_TASK_ID
+
 python3 main.py --config pretrained_vgg19_bn_2_aug --mode predict
+fi
+
+if [ $SLURM_ARRAY_TASK_ID -eq 0 ]; then
+echo $SLURM_ARRAY_TASK_ID
+
+python3 main.py --config 4conv_aug --mode predict
 fi
 
 # if [ $SLURM_ARRAY_TASK_ID -eq 5 ]; then
