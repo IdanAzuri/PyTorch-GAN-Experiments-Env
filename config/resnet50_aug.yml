@@ -39,7 +39,7 @@ train:
     save_checkpoints_steps: 1000
     verbose_step_count: 50
     show_progrees_bar: False
-    inner_batch_size: 8 # batch size for every inner-loop training iteration.
+    inner_batch_size: 10 # batch size for every inner-loop training iteration.
     inner_iters: 20 #n umber of inner-loop iterations.
     replacement: False # sample with replacement.
     meta_batch_size: 5 # how many inner-loops to run
