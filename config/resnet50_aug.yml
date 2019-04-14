@@ -49,7 +49,7 @@ eval:
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
 predict:
     batch_size: 32
-
+    use_augmentation: True
 slack:
     webhook_url: ""  # after training notify you using slack-webhook
     

@@ -52,6 +52,7 @@ eval:
     use_augmentation: False
 predict:
     use_augmentation: False
+    num_sample_augmentation: 5
 slack:
     webhook_url: ""  # after training notify you using slack-webhook
     

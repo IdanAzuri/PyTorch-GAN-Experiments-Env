@@ -5,7 +5,7 @@
 #SBATCH --time=1-20
 #SBATCH --mail-user=idan.azuri@mail.huji.ac.il
 #SBATCH --mail-type=END,FAIL,TIME_LIMIT
-#SBATCH --array=0-4%5
+#SBATCH --array=0-5%6
 
 
 module load torch
@@ -47,7 +47,7 @@ echo $SLURM_ARRAY_TASK_ID
 python3 main.py --config pretrained_vgg19_bn_2_aug --mode predict
 fi
 
-if [ $SLURM_ARRAY_TASK_ID -eq 0 ]; then
+if [ $SLURM_ARRAY_TASK_ID -eq 5 ]; then
 echo $SLURM_ARRAY_TASK_ID
 
 python3 main.py --config 4conv_aug --mode predict
