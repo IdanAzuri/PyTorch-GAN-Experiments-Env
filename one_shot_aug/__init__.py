@@ -260,7 +260,7 @@ class OneShotAug():
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
-			show_images(inputs, labels)
+			# show_images(inputs, labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
