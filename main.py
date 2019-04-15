@@ -31,6 +31,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('--config', type=str, default='config', help='config file name in config dir')
 	parser.add_argument('--mode', type=str, default='train', help='Mode (train/test/train_and_evaluate)')
+	parser.add_argument('--seed', type=int, default=0)
 	args = parser.parse_args()
 	
 	# Print Config setting
@@ -40,10 +41,11 @@ if __name__ == '__main__':
 		print("Config Description")
 		for key, value in Config.description.items():
 			print(f" - {key}: {value}")
-	random.seed(Config.model.seed)
-	torch.manual_seed(Config.model.seed)
-	torch.cuda.manual_seed_all(Config.model.seed)
-	np.random.seed(Config.model.seed)
+	seed = args.seed
+	random.seed(seed)
+	torch.manual_seed(seed)
+	torch.cuda.manual_seed_all(seed)
+	np.random.seed(seed)
 	# After terminated Notification to Slack
 	atexit.register(utils.send_message_to_slack, config_name=args.config)
 	

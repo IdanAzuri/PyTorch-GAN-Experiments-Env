@@ -155,9 +155,9 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 					cur_batch.append((totensor(sample[0]),sample[1]))
 				else:
 					cur_batch.append((totensor(policy(sample[0])),sample[1]))
-		if len(cur_batch) < batch_size:
-			continue
-		yield cur_batch
+			if len(cur_batch) < batch_size:
+				continue
+			yield cur_batch
 		cur_batch = []
 		batch_count += 1
 		if batch_count == num_batches:

@@ -12,7 +12,7 @@ model:
     name: "OneShotAug"
     type: "known_net"
     pretrained: False
-    seed: 0
+    
     arch: resnet50 #i.e. resnet,densenet
     transductive: True
     #    base_width: 4 #resnet params
