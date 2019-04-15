@@ -13,13 +13,13 @@ class Model():
 	def __init__(self, mode):
 		self.mode = mode
 	
-	def model_builder(self):
+	def model_builder(self,seed):
 		# load model
 		global model
 		models = [ACGAN, GAN, OneShotAug]
 		for current_model in models:
 			if current_model.model_name == Config.model.name:
-				model = current_model()
+				model = current_model(seed)
 				break
 		criterion = model.build_criterion()
 		if self.mode == self.TRAIN_MODE:

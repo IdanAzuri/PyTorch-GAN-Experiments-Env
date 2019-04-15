@@ -10,9 +10,9 @@ from miniimagenet_loader import read_dataset
 from model import Model
 DATA_DIR = 'data/miniimagenet'
 
-def main(mode):
+def main(mode,seed):
 	model = Model(mode)
-	model_func = model.model_builder()
+	model_func = model.model_builder(seed)
 	
 	if mode == Model.TRAIN_MODE:
 		# if Config.model.dataset == "miniimagenet":
@@ -49,4 +49,4 @@ if __name__ == '__main__':
 	# After terminated Notification to Slack
 	atexit.register(utils.send_message_to_slack, config_name=args.config)
 	
-	main(args.mode)
+	main(args.mode,seed)

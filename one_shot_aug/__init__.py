@@ -64,7 +64,8 @@ class OneShotAug():
 	
 	# os.makedirs('images', exist_ok=True)
 	
-	def __init__(self):
+	def __init__(self,seed):
+		self.seed = seed
 		self._transductive = Config.model.transductive
 		self.use_cuda = True if torch.cuda.is_available() else False
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
@@ -88,8 +89,8 @@ class OneShotAug():
 			self.meta_net = MiniImageNetModel()
 			self.title = self.meta_net.title
 		self.learning_rate = Config.train.learning_rate
-		self.c_path = f"{Config.train.model_dir}/log"
-		self.model_path = f"{Config.train.model_dir}/model"
+		self.c_path = f"{Config.train.model_dir}_{self.seed}/log"
+		self.model_path = f"{Config.train.model_dir}_{self.seed}/model"
 		mkdir_p(self.c_path)
 		mkdir_p(self.model_path)
 		# Print Config setting
