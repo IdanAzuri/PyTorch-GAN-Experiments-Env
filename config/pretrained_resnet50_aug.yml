@@ -16,9 +16,6 @@ model:
     arch: resnet50 #i.e. resnet,densenet
     filters: 64
     transductive: True
-    #    base_width: 4 #resnet params
-    #    cardinality: 32 # resnet params
-    #    depth: 29
     use_dropout: False
     dropout: 0.3
     dataset: miniimagenet
@@ -35,7 +32,6 @@ train:
     shuffle: true
     
     learning_rate: 0.001  # 2e-4
-    meta_lr: 0.001
     optim_betas:
         - 0
         - 0.999
@@ -48,6 +44,7 @@ train:
     replacement: False # sample with replacement.
     meta_batch_size: 5 # how many inner-loops to run
     meta_iters: 100000 # epochs
+    meta_lr: 0.001
 eval:
     eval_inner_iters: 50
     inner_batch_size: 5 # batch size for every inner-loop training iteration.
