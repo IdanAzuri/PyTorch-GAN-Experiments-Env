@@ -241,7 +241,8 @@ class OneShotAug():
 	
 	def evaluate_model(self, fast_net, optimaizer, dataset, mode="total_test"):
 		# old_model_state = deepcopy(fast_net.state_dict())  # store weights to avoid training
-		train_set_imgs, test_set_imgs = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + 1))  # 1 more sample for train
+		test_shots = 50
+		train_set_imgs, test_set_imgs = _split_train_test(_sample_mini_dataset(dataset, self.num_classes, self.num_shots + test_shots), test_shots=test_shots)  # 1 more sample for train
 		self.learn_for_eval(fast_net, optimaizer,(train_set_imgs))
 		num_correct, len_set = self._test_predictions(fast_net, train_set_imgs, test_set_imgs)  # testing on only 1 sample mabye redundant
 		
@@ -318,6 +319,7 @@ class OneShotAug():
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
 		test_inputs_tensors = pil_images_to_tensors(test_inputs)
+		# show_images(test_inputs_tensors, test_labels)
 		if self._transductive:
 			if self.use_cuda:
 				test_inputs_variables = Variable(torch.stack(test_inputs_tensors)).cuda()
