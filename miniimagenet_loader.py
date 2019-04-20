@@ -153,6 +153,7 @@ class AutoEncoder(nn.Module):
 		self.layer1 = _conv_layer(3, self.n_filters, 3, 1, 0)
 		self.layer2 = _conv_layer(self.n_filters, self.n_filters // 2, 3, 1,0)
 		self.layer3 = _conv_layer(self.n_filters // 2, self.n_filters // 4, 3, 1,0)
+		# self.emb = nn.Sequential(nn.Linear(512, 512))
 		self.emb = nn.Sequential(nn.Linear(512, 512))
 		
 		# deconv layers: (in_channel size, out_channel size, kernel_size, stride, padding, output_padding)
@@ -175,7 +176,7 @@ class AutoEncoder(nn.Module):
 		x = self.deconv2(x)
 		self.decoded = self.deconv3(x)
 		x = torch.tanh(self.decoded)
-		return x.reshape((-1,3,84,84))
+		return  x.reshape((-1,3,84,84))
 	
 	def load_saved_model(self, path, model):
 		latest_path = find_latest(path + "/")
@@ -206,7 +207,7 @@ class AutoEncoder(nn.Module):
 		return step_count, model
 	
 	def set_optimizer(self):
-		self.optimizer = Adam(self.parameters(), lr=1e-3)
+		self.optimizer = Adam(self.parameters(), lr=lr)
 	
 	def save_checkpoint(self, step, max_to_keep=3):
 		sorted_path = get_sorted_path(self.path_to_save)
@@ -216,7 +217,6 @@ class AutoEncoder(nn.Module):
 		full_path = os.path.join(self.path_to_save, f"ae_{step}.pkl")
 		torch.save({"step_count": step, 'net': self.state_dict(), 'optimizer': self.optimizer.state_dict(), }, full_path)
 		print(f"Save checkpoints...! {full_path}")
-
 
 def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement,num_aug=5):
 	ae= AutoEncoder()

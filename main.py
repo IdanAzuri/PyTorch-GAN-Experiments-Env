@@ -7,7 +7,7 @@ import random
 import basic_utils
 import utils
 from data_loader import *
-from miniimagenet_loader import read_dataset
+from miniimagenet_loader import read_dataset, AutoEncoder
 from model import Model
 DATA_DIR = 'data/miniimagenet'
 
@@ -50,4 +50,30 @@ if __name__ == '__main__':
 	# After terminated Notification to Slack
 	atexit.register(basic_utils.send_message_to_slack, config_name=args.config)
 	
-	main(args.mode,seed)
+	
+	train_dataset, valid_dataset = get_loader("train")
+# define the autoencoder and move the network into GPU
+	ae = AutoEncoder()
+	ae.train()
+	ae.set_optimizer()
+	is_cuda = True if torch.cuda.is_available() else False
+	if is_cuda:
+		ae.cuda()
+	# define the loss (criterion) and create an optimizer
+	criterion = torch.nn.MSELoss()
+	resume = False
+	if resume:
+		epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
+		print(f"Model has been loaded epoch:{epoch}, path:{ae.path_to_save}")
+	else:
+		epoch = 0
+	for epoch in range(epoch, 100):  # epochs loop
+		for batch_idx, (batch_img, batch_label) in enumerate(train_dataset):  # batches loop
+			output = ae(batch_img)
+			loss = criterion(output, batch_img)  # calculate the loss
+			print(f'batch_idx:{batch_idx} loss: ', loss.data.item())
+			ae.optimizer.zero_grad()
+			loss.backward()  # calculate the gradients (backpropagation)
+			ae.optimizer.step()  # update the weights
+		ae.save_checkpoint(epoch)
+	# main(args.mode,seed)
