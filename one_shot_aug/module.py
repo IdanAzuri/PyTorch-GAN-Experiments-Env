@@ -6,6 +6,8 @@ from hbconfig import Config
 from torch.autograd import Variable
 from torch.nn import init
 
+from utils import _conv_layer
+
 
 class PretrainedClassifier(nn.Module):
 	def __init__(self):
@@ -120,14 +122,3 @@ class MiniImageNetModel(nn.Module):
 		if use_cuda:
 			clone.cuda()
 		return clone
-
-
-def _conv_layer(n_input, n_output, k):
-	"3x3 convolution with padding"
-	seq = nn.Sequential(nn.Conv2d(n_input, n_output, kernel_size=k, stride=1, padding=1, bias=True), nn.BatchNorm2d(n_output), nn.LeakyReLU(True),
-	                    nn.MaxPool2d(kernel_size=2, stride=2))
-	if Config.model.use_dropout:  # Add dropout module
-		list_seq = list(seq.modules())[1:]
-		list_seq.append(nn.Dropout(Config.model.dropout))
-		seq = nn.Sequential(*list_seq)
-	return seq

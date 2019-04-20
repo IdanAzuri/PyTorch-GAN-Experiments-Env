@@ -8,12 +8,20 @@ sub-directory per WordNet ID.
 
 import os
 import random
+from collections import OrderedDict
 
+import torch
 from PIL import Image, ImageFile
 from hbconfig import Config
+from torch import nn
+from torch.optim import Adam
+from torchsummary import summary
 from torchvision.transforms import transforms, ToTensor
 
 from AutoAugment.autoaugment import ImageNetPolicy
+
+from auto_encoder import *
+from utils import find_latest, mkdir_p, get_sorted_path, _conv_layer, _conv_transpose_layer
 
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -135,8 +143,88 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 			if batch_count == num_batches:
 				return
 
+
+class AutoEncoder(nn.Module):
+	def __init__(self):
+		super(AutoEncoder, self).__init__()
+		self.path_to_save = f"ae/model"
+		# conv layers: (in_channel size, out_channels size, kernel_size, stride, padding)
+		self.n_filters = 32
+		self.layer1 = _conv_layer(3, self.n_filters, 3, 1, 0)
+		self.layer2 = _conv_layer(self.n_filters, self.n_filters // 2, 3, 1,0)
+		self.layer3 = _conv_layer(self.n_filters // 2, self.n_filters // 4, 3, 1,0)
+		self.emb = nn.Sequential(nn.Linear(512, 512))
+		
+		# deconv layers: (in_channel size, out_channel size, kernel_size, stride, padding, output_padding)
+		self.deconv1 = _conv_transpose_layer(self.n_filters // 4, self.n_filters // 2, 3, stride=3, padding=1, output_padding=1)
+		self.deconv2 = _conv_transpose_layer(self.n_filters // 2, self.n_filters, 3, stride=2, padding=2, output_padding=1)
+		self.deconv3 = _conv_transpose_layer(self.n_filters, 3, 3, stride=2, padding=3, output_padding=1)
+		mkdir_p(self.path_to_save)
+		summary(self, (3, 84, 84))
+	
+	def forward(self, x):
+		# the autoencoder has 3 con layers and 3 deconv layers (transposed conv). All layers but the last have ReLu
+		# activation function
+		x = self.layer1(x)
+		x = self.layer2(x)
+		x = self.layer3(x)
+		x = x.view(x.size()[0], -1)
+		x = self.emb(x)
+		x = x.reshape(-1, 8, 8, 8)
+		x = self.deconv1(x)
+		x = self.deconv2(x)
+		self.decoded = self.deconv3(x)
+		x = torch.tanh(self.decoded)
+		return x.reshape((-1,3,84,84))
+	
+	def load_saved_model(self, path, model):
+		latest_path = find_latest(path + "/")
+		if latest_path is None:
+			return 0, model
+		
+		checkpoint = torch.load(latest_path)
+		
+		step_count = checkpoint['step_count']
+		state_dict = checkpoint['net']
+		# if dataparallel
+		# if "module" in list(state_dict.keys())[0]:
+		try:
+			new_state_dict = OrderedDict()
+			for k, v in state_dict.items():
+				name = k[7:]  # remove 'module.' of dataparallel
+				new_state_dict[name] = v
+			
+			model.load_state_dict(new_state_dict)
+			model.optimizer.load_state_dict(checkpoint['optimizer'])
+		except:
+			# else:
+			model.load_state_dict(checkpoint['net'])
+			if model.optimizer is not None:
+				model.optimizer.load_state_dict(checkpoint['optimizer'])
+		
+		print(f"Load checkpoints...! {latest_path}")
+		return step_count, model
+	
+	def set_optimizer(self):
+		self.optimizer = Adam(self.parameters(), lr=1e-3)
+	
+	def save_checkpoint(self, step, max_to_keep=3):
+		sorted_path = get_sorted_path(self.path_to_save)
+		for i in range(len(sorted_path) - max_to_keep):
+			os.remove(sorted_path[i])
+		
+		full_path = os.path.join(self.path_to_save, f"ae_{step}.pkl")
+		torch.save({"step_count": step, 'net': self.state_dict(), 'optimizer': self.optimizer.state_dict(), }, full_path)
+		print(f"Save checkpoints...! {full_path}")
+
+
 def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement,num_aug=5):
-	policy = ImageNetPolicy()
+	ae= AutoEncoder()
+	epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
+	ae.eval()
+	print(f"AutoEncoer has been loaded epoch:{epoch}, path:{ae.path_to_save}")
+	
+	policy =  ae # ImageNetPolicy()
 	samples = list(samples)
 	cur_batch = []
 	if replacement:
@@ -154,7 +242,7 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 				if idx == 0:
 					cur_batch.append((totensor(sample[0]),sample[1]))
 				else:
-					cur_batch.append((totensor(policy(sample[0])),sample[1]))
+					cur_batch.append((policy(torch.unsqueeze(totensor(sample[0]),0)).squeeze(),sample[1]))
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch

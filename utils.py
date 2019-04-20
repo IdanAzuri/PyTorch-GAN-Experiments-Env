@@ -1,71 +1,252 @@
+from __future__ import print_function, absolute_import
 
-import json
-import os.path
+import re
+from collections import OrderedDict
+from io import BytesIO
 
-import requests
+import numpy as np
+import scipy.misc
+import tensorflow as tf
+import torch
 from hbconfig import Config
 
 
-def send_message_to_slack(config_name):
-    project_name = os.path.basename(os.path.abspath("."))
-
-    data = {
-        "text": f"The learning is finished with *{project_name}* Project using `{config_name}` config."
-    }
-
-    webhook_url = Config.slack.webhook_url
-    if webhook_url == "":
-        print(data["text"])
-    else:
-        requests.post(Config.slack.webhook_url, data=json.dumps(data))
-
-import matplotlib.pyplot as plt
-
-label_names = [
-    'airplane',
-    'automobile',
-    'bird',
-    'cat',
-    'deer',
-    'dog',
-    'frog',
-    'horse',
-    'ship',
-    'truck'
-    ]
-
-
-def plot_images(images, cls_true, cls_pred=None):
-    """
-    Adapted from https://github.com/Hvass-Labs/TensorFlow-Tutorials/
-    """
-    fig, axes = plt.subplots(3, 3)
-    
-    for i, ax in enumerate(axes.flat):
-        # plot img
-        ax.imshow(images[i, :, :, :], interpolation='spline16')
-        
-        # show true & predicted classes
-        cls_true_name = label_names[cls_true[i]]
-        if cls_pred is None:
-            xlabel = "{0} ({1})".format(cls_true_name, cls_true[i])
-        else:
-            cls_pred_name = label_names[cls_pred[i]]
-            xlabel = "True: {0}\nPred: {1}".format(
-                cls_true_name, cls_pred_name
-                )
-        ax.set_xlabel(xlabel)
-        ax.set_xticks([])
-        ax.set_yticks([])
-    
-    plt.show()
+def load_saved_model(path, model, optimizer, state=None):
+	latest_path = find_latest(path + "/")
+	if latest_path is None:
+		return 0, model, optimizer, state
+	
+	checkpoint = torch.load(latest_path)
+	
+	step_count = checkpoint['step_count']
+	state_dict = checkpoint['meta_net']
+	state = checkpoint['optimizer_state']
+	# if dataparallel
+	# if "module" in list(state_dict.keys())[0]:
+	try:
+		new_state_dict = OrderedDict()
+		for k, v in state_dict.items():
+			name = k[7:]  # remove 'module.' of dataparallel
+			new_state_dict[name] = v
+		
+		model.load_state_dict(new_state_dict)
+		optimizer.load_state_dict(checkpoint['meta_optimizer'])
+	except:
+		# else:
+		model.load_state_dict(checkpoint['meta_net'])
+		if optimizer is not None:
+			optimizer.load_state_dict(checkpoint['meta_optimizer'])
+	
+	print(f"Load checkpoints...! {latest_path}")
+	return step_count, model, optimizer, state
 
 
-def saving_config(path):
-    with open(path, "w+") as text_file:
-        text_file.write(f"Config: {Config}")
-        if Config.get("description", None):
-            text_file.write("Config: {}".format(Config))
-            text_file.write("Config Description")
-            for key, value in Config.description.items():
-                text_file.write(f" - {key}: {value}")
+def find_latest(find_path):
+	sorted_path = get_sorted_path(find_path)
+	if len(sorted_path) == 0:
+		return None
+	
+	return sorted_path[-1]
+
+
+def save_checkpoint(step, path, meta_net, meta_optimizer, state, max_to_keep=3):
+	sorted_path = get_sorted_path(path)
+	for i in range(len(sorted_path) - max_to_keep):
+		os.remove(sorted_path[i])
+	
+	full_path = os.path.join(path, Config.model.name + f"-{step}.pkl")
+	torch.save({"step_count": step, 'meta_net': meta_net.state_dict(), 'meta_optimizer': meta_optimizer.state_dict(), 'optimizer_state': state, }, full_path)
+	print(f"Save checkpoints...! {full_path}")
+
+
+def get_sorted_path(find_path):
+	dir_path = os.path.dirname(find_path)
+	base_name = os.path.basename(find_path)
+	
+	paths = []
+	for root, dirs, files in os.walk(dir_path):
+		for f_name in files:
+			if f_name.startswith(base_name) and f_name.endswith(".pkl"):
+				paths.append(os.path.join(root, f_name))
+	
+	return sorted(paths, key=lambda x: int(re.findall("\d+", os.path.basename(x))[0]))
+
+
+def denorm(x):
+	out = (x + 1) / 2
+	return out.clamp(0, 1)
+
+
+class TensorBoard:
+	
+	def __init__(self, log_dir):
+		"""Create a summary writer logging to log_dir."""
+		self.writer = tf.summary.FileWriter(log_dir)
+	
+	def scalar_summary(self, tag, value, step):
+		"""Log a scalar variable."""
+		summary = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
+		self.writer.add_summary(summary, step)
+	
+	def image_summary(self, tag, images, step):
+		"""Log a list of images."""
+		
+		img_summaries = []
+		for i, img in enumerate(images):
+			# Write the image to a string
+			s = BytesIO()
+			scipy.misc.toimage(img).save(s, format="png")
+			
+			# Create an Image object
+			img_sum = tf.Summary.Image(encoded_image_string=s.getvalue(), height=img.shape[0], width=img.shape[1])
+			# Create a Summary value
+			img_summaries.append(tf.Summary.Value(tag=f"{tag}/{i}", image=img_sum))
+		
+		# Create and write Summary
+		summary = tf.Summary(value=img_summaries)
+		self.writer.add_summary(summary, step)
+	
+	def histo_summary(self, tag, values, step, bins=1000):
+		"""Log a histogram of the tensor of values."""
+		
+		# Create a histogram using numpy
+		counts, bin_edges = np.histogram(values, bins=bins)
+		
+		# Fill the fields of the histogram proto
+		hist = tf.HistogramProto()
+		hist.min = float(np.min(values))
+		hist.max = float(np.max(values))
+		hist.num = int(np.prod(values.shape))
+		hist.sum = float(np.sum(values))
+		hist.sum_squares = float(np.sum(values ** 2))
+		
+		# Drop the start of the first bin
+		bin_edges = bin_edges[1:]
+		
+		# Add bin edges and counts
+		for edge in bin_edges:
+			hist.bucket_limit.append(edge)
+		for c in counts:
+			hist.bucket.append(c)
+		
+		# Create and write Summary
+		summary = tf.Summary(value=[tf.Summary.Value(tag=tag, histo=hist)])
+		self.writer.add_summary(summary, step)
+		self.writer.flush()
+
+
+'''Some helper functions for PyTorch, including:
+    - get_mean_and_std: calculate the mean and std value of dataset.
+    - msr_init: net parameter initialization.
+    - progress_bar: progress bar mimic xlua.progress.
+'''
+import errno
+import os
+
+import torch.nn as nn
+import torch.nn.init as init
+
+
+# __all__ = ['get_mean_and_std', 'init_params', 'mkdir_p', 'AverageMeter']
+
+
+def get_mean_and_std(dataset):
+	'''Compute the mean and std value of dataset.'''
+	dataloader = trainloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=2)
+	
+	mean = torch.zeros(3)
+	std = torch.zeros(3)
+	print('==> Computing mean and std..')
+	for inputs, targets in dataloader:
+		for i in range(3):
+			mean[i] += inputs[:, i, :, :].mean()
+			std[i] += inputs[:, i, :, :].std()
+	mean.div_(len(dataset))
+	std.div_(len(dataset))
+	return mean, std
+
+
+def init_params(net):
+	'''Init layer parameters.'''
+	for m in net.modules():
+		if isinstance(m, nn.Conv2d):
+			init.kaiming_normal(m.weight, mode='fan_out')
+			if m.bias:
+				init.constant(m.bias, 0)
+		elif isinstance(m, nn.BatchNorm2d):
+			init.constant(m.weight, 1)
+			init.constant(m.bias, 0)
+		elif isinstance(m, nn.Linear):
+			init.normal(m.weight, std=1e-3)
+			if m.bias:
+				init.constant(m.bias, 0)
+
+
+def mkdir_p(path):
+	'''make dir if not exist'''
+	try:
+		os.makedirs(path)
+	except OSError as exc:  # Python >2.5
+		if exc.errno == errno.EEXIST and os.path.isdir(path):
+			pass
+		else:
+			raise
+
+
+class AverageMeter(object):
+	"""Computes and stores the average and current value
+	   Imported from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L247-L262
+	"""
+	
+	def __init__(self):
+		self.reset()
+	
+	def reset(self):
+		self.val = 0
+		self.avg = 0
+		self.sum = 0
+		self.count = 0
+	
+	def update(self, val, n=1):
+		self.val = val
+		self.sum += val * n
+		self.count += n
+		self.avg = self.sum / self.count
+
+
+def accuracy(output, target, topk=(1,)):
+	"""Computes the precision@k for the specified values of k"""
+	maxk = max(topk)
+	batch_size = target.size(0)
+	
+	_, pred = output.topk(maxk, 1, True, True)
+	pred = pred.t()
+	correct = pred.eq(target.view(1, -1).expand_as(pred))
+	
+	res = []
+	for k in topk:
+		correct_k = correct[:k].view(-1).float().sum(0)
+		res.append(correct_k.mul_(100.0 / batch_size))
+	return res
+
+
+def _conv_layer(n_input, n_output, k, stride=1, padding=1, bias=True):
+	"3x3 convolution with padding"
+	seq = nn.Sequential(nn.Conv2d(n_input, n_output, kernel_size=k, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(n_output), nn.LeakyReLU(True),
+	                    nn.MaxPool2d(kernel_size=2, stride=2, return_indices=False))
+	if Config.model.use_dropout:  # Add dropout module
+		list_seq = list(seq.modules())[1:]
+		list_seq.append(nn.Dropout(Config.model.dropout))
+		seq = nn.Sequential(*list_seq)
+	return seq
+
+
+def _conv_transpose_layer(n_input, n_output, k, stride=1, padding=0, output_padding=0, bias=True):
+	"3x3 convolution with padding"
+	seq = nn.Sequential(nn.ConvTranspose2d(n_input, n_output, kernel_size=k, stride=stride, padding=padding, bias=bias, output_padding=output_padding), nn.BatchNorm2d(n_output),
+	                    nn.LeakyReLU(True))
+	if Config.model.use_dropout:  # Add dropout module
+		list_seq = list(seq.modules())[1:]
+		list_seq.append(nn.Dropout(Config.model.dropout))
+		seq = nn.Sequential(*list_seq)
+	return seq

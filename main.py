@@ -4,6 +4,7 @@ import argparse
 import atexit
 import random
 
+import basic_utils
 import utils
 from data_loader import *
 from miniimagenet_loader import read_dataset
@@ -47,6 +48,6 @@ if __name__ == '__main__':
 	torch.cuda.manual_seed_all(seed)
 	np.random.seed(seed)
 	# After terminated Notification to Slack
-	atexit.register(utils.send_message_to_slack, config_name=args.config)
+	atexit.register(basic_utils.send_message_to_slack, config_name=args.config)
 	
 	main(args.mode,seed)

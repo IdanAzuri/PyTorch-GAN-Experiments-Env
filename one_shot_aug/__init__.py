@@ -13,13 +13,13 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.transforms import ToTensor
 
+import utils
 from AutoAugment.autoaugment import ImageNetPolicy
 from logger import Logger
 from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test, _mini_batches_with_augmentation
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
-from one_shot_aug.utils import AverageMeter, accuracy, mkdir_p
-from utils import saving_config
-from . import utils
+from utils import AverageMeter, accuracy, mkdir_p
+from basic_utils import saving_config
 
 
 meta_step_size = 1.  # stepsize of outer optimization, i.e., meta-optimization
@@ -262,7 +262,7 @@ class OneShotAug():
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
 			inputs, labels = zip(*batch)
-			# show_images(inputs, labels)
+			show_images(inputs, labels)
 			inputs = Variable(torch.stack(inputs))
 			labels = Variable(torch.from_numpy(np.array(labels)))
 			if self.use_cuda:
@@ -403,10 +403,18 @@ def show_images(images,labels):
 	for i in range(1, columns*rows+1):
 		ax = fig.add_subplot(rows, columns, i)
 		ax.set_title(labels[i-1])
-		image = images[i-1].numpy()
-		plt.imshow(np.transpose(image, (1, 2, 0)), interpolation='nearest')
+		image = to_img(images[i-1])
+		plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
 	plt.show()
 
 def set_learning_rate(optimizer, lr):
 	for param_group in optimizer.param_groups:
 		param_group['lr'] = lr
+
+
+def to_img(x):
+	# out = 0.5 * (x + 1)
+	out = x.clamp(0, 1)
+	out = out.view(-1, 3, 84, 84)
+	out= out.detach().numpy()
+	return out

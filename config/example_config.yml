@@ -36,9 +36,9 @@ train:
 
   save_checkpoints_steps: 1000
   verbose_step_count: 100
-
+  use_augmentation: False
 predict:
   batch_size: 64
-
+  
 slack:
   webhook_url: ""  # after training notify you using slack-webhook

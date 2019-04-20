@@ -19,7 +19,7 @@ def get_loader(mode):
 	is_train = mode == "train"
 	if config.train.use_augmentation:
 		transform_list_train.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
-	transform_list_train.extend([transforms.Resize(config.data.image_size),
+	transform_list_train.extend([transforms.Resize((84, 84)),
 	                       transforms.ToTensor(),
 	                       # transforms.Normalize(mean=[0.485, 0.456, 0.406],
 	                       #                      std=[0.229, 0.224, 0.225])
@@ -29,7 +29,7 @@ def get_loader(mode):
 	
 	if config.predict.use_augmentation:
 		transform_list_test.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
-	transform_list_test.extend([transforms.Resize(config.data.image_size),
+	transform_list_test.extend([transforms.Resize((84, 84)),
 	                             transforms.ToTensor(),
 	                             # transforms.Normalize(mean=[0.485, 0.456, 0.406],
 	                                                  # std=[0.229, 0.224, 0.225])
@@ -59,15 +59,14 @@ def get_loader(mode):
 	if config.model.dataset == "miniimagenet":
 		train_loader, valid_loader = read_dataset(Config.data.miniimagenet_path,transform_train,transform_test)
 		# transform_train(train_loader)
-	# if config.model.dataset == "miniimagenet_all":
-	# 	train_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_train)
-	# 	valid_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_list_test)
+	if config.model.dataset == "miniimagenet_all":
+		train_loader = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_train)
+		valid_loader = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_list_test)
 	# 	# test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
-	# 	train_loader = DataLoader(dataset=train_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
-	# 	valid_loader = DataLoader(dataset=valid_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+		train_loader = DataLoader(dataset=train_loader, batch_size=1, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+		valid_loader = DataLoader(dataset=valid_loader, batch_size=1, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	# 	# test_loader = DataLoader(dataset=test_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	return train_loader, valid_loader
-
 
 """
 Create train, valid, test iterators for CIFAR-10 [1].
