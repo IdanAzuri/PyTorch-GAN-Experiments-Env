@@ -36,7 +36,7 @@ train:
     learning_rate: 0.001
     meta_lr: 0.001
     optim_betas:
-        - 0
+        - 0.5
         - 0.999
     
     save_checkpoints_steps: 1000
