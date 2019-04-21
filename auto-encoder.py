@@ -185,6 +185,7 @@ if __name__ == '__main__':
 		for batch_idx, (batch_img, batch_label) in enumerate(train_dataset):  # batches loop
 			if is_cuda:
 				batch_img=batch_img.cuda()
+				batch_label=batch_label.cuda()
 			output = ae(batch_img)
 			loss = criterion(output, batch_img)  # calculate the loss
 			if batch_idx % 50 == 0:
