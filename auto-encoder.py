@@ -1,19 +1,16 @@
 from __future__ import print_function
 
+import argparse
+import os
 from collections import OrderedDict
 
-import argparse
 import matplotlib.pyplot as plt
-import numpy as np
-import os
-import torch
 import torch.nn as nn
-from data_loader import *
-from hbconfig import Config
 from torch.autograd import Variable
 from torch.optim import Adam
 from torchsummary import summary
-from torchvision import transforms
+
+from data_loader import *
 from utils import _conv_layer, _conv_transpose_layer
 from utils import get_sorted_path, find_latest, mkdir_p
 
@@ -48,6 +45,7 @@ class AutoEncoder(nn.Module):
 	def __init__(self):
 		super(AutoEncoder, self).__init__()
 		self.path_to_save = f"ae/model"
+		self.use_cuda= False
 		# conv layers: (in_channel size, out_channels size, kernel_size, stride, padding)
 		self.n_filters = 32
 		self.layer1 = _conv_layer(3, self.n_filters, 3, 1, 0)
@@ -61,7 +59,9 @@ class AutoEncoder(nn.Module):
 		self.deconv2 = _conv_transpose_layer(self.n_filters // 2, self.n_filters, 3, stride=2, padding=2, output_padding=1)
 		self.deconv3 = _conv_transpose_layer(self.n_filters, 3, 3, stride=2, padding=3, output_padding=1)
 		mkdir_p(self.path_to_save)
-		summary(self.cuda(), (3, 84, 84))
+		if self.use_cuda:
+			self = self.cuda()
+		summary(self, (3, 84, 84))
 	
 	def forward(self, x):
 		# the autoencoder has 3 con layers and 3 deconv layers (transposed conv). All layers but the last have ReLu
@@ -171,6 +171,7 @@ if __name__ == '__main__':
 	ae.train()
 	ae.set_optimizer()
 	is_cuda = True if torch.cuda.is_available() else False
+	ae.use_cude = is_cuda
 	if is_cuda:
 		ae.cuda()
 	# define the loss (criterion) and create an optimizer
@@ -184,8 +185,8 @@ if __name__ == '__main__':
 	for epoch in range(epoch, 30):  # epochs loop
 		for batch_idx, (batch_img, batch_label) in enumerate(train_dataset):  # batches loop
 			if is_cuda:
-				batch_img=batch_img.cuda()
-				batch_label=batch_label.cuda()
+				batch_img = batch_img.cuda()
+				batch_label = batch_label.cuda()
 			output = ae(batch_img)
 			loss = criterion(output, batch_img)  # calculate the loss
 			if batch_idx % 50 == 0:

@@ -63,8 +63,8 @@ def get_loader(mode):
 		train_loader = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_train)
 		valid_loader = datasets.ImageFolder(root=config.data.miniimagenet_path,transform=transform_list_test)
 	# 	# test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
-		train_loader = DataLoader(dataset=train_loader, batch_size=1, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
-		valid_loader = DataLoader(dataset=valid_loader, batch_size=1, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+		train_loader = DataLoader(dataset=train_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+		valid_loader = DataLoader(dataset=valid_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	# 	# test_loader = DataLoader(dataset=test_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	return train_loader, valid_loader
 

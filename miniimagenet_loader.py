@@ -207,7 +207,7 @@ class AutoEncoder(nn.Module):
 		return step_count, model
 	
 	def set_optimizer(self):
-		self.optimizer = Adam(self.parameters(), lr=lr)
+		self.optimizer = Adam(self.parameters(), lr=Config.train.learning_rate)
 	
 	def save_checkpoint(self, step, max_to_keep=3):
 		sorted_path = get_sorted_path(self.path_to_save)
