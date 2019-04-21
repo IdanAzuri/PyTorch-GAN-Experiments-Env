@@ -22,7 +22,7 @@ model:
     conv2: 32
     conv3: 64
     conv4: 128
-    use_dropout: False
+    use_dropout: True
     dropout: 0.3
     dataset: miniimagenet_all
     n_classes: 5 # number of data classes to sample.
@@ -30,7 +30,7 @@ model:
     train_shot: 15
 train:
     use_augmentation: False
-    model_dir: "outputs/4conv"
+    model_dir: "outputs/ae"
     shuffle: true
     
     learning_rate: 0.001
