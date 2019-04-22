@@ -261,19 +261,22 @@ class OneShotAug():
 			mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
 		for batch_idx, batch in enumerate(mini_batches):
-			inputs, labels = zip(*batch)
-			show_images(inputs, labels)
-			inputs = Variable(torch.stack(inputs))
-			labels = Variable(torch.from_numpy(np.array(labels)))
-			if self.use_cuda:
-				inputs = inputs.cuda()
-				labels = labels.cuda()
-			# compute output
-			outputs = fast_net(inputs)
-			loss = self.loss_criterion(outputs, labels)  # measure accuracy and record loss
-			optimaizer.zero_grad()
-			loss.backward()
-			optimaizer.step()
+			try:
+				inputs, labels = zip(*batch)
+				# show_images(inputs, labels)
+				inputs = Variable(torch.stack(inputs))
+				labels = Variable(torch.from_numpy(np.array(labels)))
+				if self.use_cuda:
+					inputs = inputs.cuda()
+					labels = labels.cuda()
+				# compute output
+				outputs = fast_net(inputs)
+				loss = self.loss_criterion(outputs, labels)  # measure accuracy and record loss
+				optimaizer.zero_grad()
+				loss.backward()
+				optimaizer.step()
+			except:
+				print(f"Skipped: inputs.shape:{inputs[0].shape}")
 
 		
 		return
@@ -290,7 +293,7 @@ class OneShotAug():
 		transform_list_test = []
 		# if Config.predict.use_augmentation:
 		# transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy(Config.predict.num_sample_augmentation)])
-		transform_list_test.extend([transforms.Resize(Config.data.image_size),
+		transform_list_test.extend([transforms.Resize((Config.data.image_size,Config.data.image_size)),
 		                            # transforms.ToTensor(),
 		                            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
 		                            #                      std=[0.229, 0.224, 0.225])

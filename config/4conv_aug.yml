@@ -4,7 +4,7 @@ data:
     svhn_path: "data/svhn"
     cifar10_path: "data/cifar10"
     miniimagenet_path: "data/miniimagenet"
-    image_size: 84
+    image_size: 224
     num_workers: 6
     channels: 3
 

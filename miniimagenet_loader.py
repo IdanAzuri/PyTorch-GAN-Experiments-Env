@@ -18,14 +18,12 @@ from torch.optim import Adam
 from torchsummary import summary
 from torchvision.transforms import transforms, ToTensor
 
-from AutoAugment.autoaugment import ImageNetPolicy
-
-from auto_encoder import *
-from utils import find_latest, mkdir_p, get_sorted_path, _conv_layer, _conv_transpose_layer
+from utils import find_latest, mkdir_p, get_sorted_path
 
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 totensor = ToTensor()
+
 
 def read_dataset_test(data_dir, transforms=None):
 	"""
@@ -39,8 +37,7 @@ def read_dataset_test(data_dir, transforms=None):
 	return tuple([_read_classes(os.path.join(data_dir, 'test'), transforms)])
 
 
-
-def read_dataset(data_dir, transform_train=None,transform_test=None):
+def read_dataset(data_dir, transform_train=None, transform_test=None):
 	"""
 	Read the Mini-ImageNet dataset.
 	Args:
@@ -49,7 +46,7 @@ def read_dataset(data_dir, transform_train=None,transform_test=None):
 	  A tuple (train, val, test) of sequences of
 		ImageNetClass instances.
 	"""
-	return tuple([_read_classes(os.path.join(data_dir, 'train'), transform_train),_read_classes(os.path.join(data_dir, 'val'), transform_test)])  # , 'test'
+	return tuple([_read_classes(os.path.join(data_dir, 'train'), transform_train), _read_classes(os.path.join(data_dir, 'val'), transform_test)])  # , 'test'
 
 
 def _read_classes(dir_path, transforms):
@@ -70,13 +67,13 @@ class ImageNetClass:
 		self._cache = {}
 		self.transform = transform
 		if transform is None:
-			self.transform = transforms.Compose(
-				[transforms.Resize(Config.data.image_size),
-				 # transforms.ToTensor(),
-				 # transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-				 ])
+			self.transform = transforms.Compose([transforms.Resize((Config.data.image_size,Config.data.image_size)), # transforms.ToTensor(),
+			                                     # transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+			                                     ])
+	
 	def __len__(self):
-			return len([f for f in os.listdir(self.dir_path) if f.endswith('.JPEG')])
+		return len([f for f in os.listdir(self.dir_path) if f.endswith('.JPEG')])
+	
 	def sample(self, num_images):
 		"""
 		Sample images (as numpy arrays) from the class.
@@ -97,7 +94,7 @@ class ImageNetClass:
 			
 			return tmp
 		with open(os.path.join(self.dir_path, name), 'rb') as in_file:
-			img = Image.open(in_file).resize((84, 84)).convert('RGB')
+			img = Image.open(in_file).resize((Config.data.image_size,Config.data.image_size)).convert('RGB')
 			self._cache[name] = self.transform(img)
 			return self._read_image(name)
 
@@ -123,7 +120,7 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 	  An iterable of sequences of (input, label) pairs,
 		where each sequence is a mini-batch.
 	"""
-	totensor= ToTensor()
+	totensor = ToTensor()
 	samples = list(samples)
 	if replacement:
 		for _ in range(num_batches):
@@ -134,7 +131,7 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 	while True:
 		random.shuffle(samples)
 		for sample in samples:
-			cur_batch.append((totensor(sample[0]),sample[1]))
+			cur_batch.append((totensor(sample[0]), sample[1]))
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch
@@ -144,39 +141,82 @@ def _mini_batches(samples, batch_size, num_batches, replacement):
 				return
 
 
+class Interpolate(nn.Module):
+	def __init__(self, mode, scale_factor):
+		super(Interpolate, self).__init__()
+		self.interp = nn.functional.interpolate
+		self.size = scale_factor
+		self.mode = mode
+	
+	def forward(self, x):
+		x = self.interp(x, size=self.size, mode=self.mode, align_corners=False)
+		return x
+
+
 class AutoEncoder(nn.Module):
 	def __init__(self):
 		super(AutoEncoder, self).__init__()
 		self.path_to_save = f"ae/model"
+		self.use_cuda = torch.cuda.is_available()
 		# conv layers: (in_channel size, out_channels size, kernel_size, stride, padding)
-		self.n_filters = 32
-		self.layer1 = _conv_layer(3, self.n_filters, 3, 1, 0)
-		self.layer2 = _conv_layer(self.n_filters, self.n_filters // 2, 3, 1,0)
-		self.layer3 = _conv_layer(self.n_filters // 2, self.n_filters // 4, 3, 1,0)
-		# self.emb = nn.Sequential(nn.Linear(512, 512))
-		self.emb = nn.Sequential(nn.Linear(512, 512))
+		# self.n_filters = 32
+		# self.layer1 = _conv_layer(3, self.n_filters, 3, 1, 0)
+		# self.layer2 = _conv_layer(self.n_filters, self.n_filters // 2, 3, 1, 0)
+		# self.layer3 = _conv_layer(self.n_filters // 2, self.n_filters // 4, 3, 1, 0)
+		# # self.emb = nn.Sequential(nn.Linear(512, 512))
+		# self.emb = nn.Sequential(nn.Linear(5408, 5408))
 		
-		# deconv layers: (in_channel size, out_channel size, kernel_size, stride, padding, output_padding)
-		self.deconv1 = _conv_transpose_layer(self.n_filters // 4, self.n_filters // 2, 3, stride=3, padding=1, output_padding=1)
-		self.deconv2 = _conv_transpose_layer(self.n_filters // 2, self.n_filters, 3, stride=2, padding=2, output_padding=1)
-		self.deconv3 = _conv_transpose_layer(self.n_filters, 3, 3, stride=2, padding=3, output_padding=1)
+		# # deconv layers: (in_channel size, out_channel size, kernel_size, stride, padding, output_padding)
+		# self.deconv1 = _conv_transpose_layer(self.n_filters // 4, self.n_filters // 2, 3, stride=3, padding=1, output_padding=1)
+		# self.deconv2 = _conv_transpose_layer(self.n_filters // 2, self.n_filters, 3, stride=2, padding=2, output_padding=1)
+		# self.deconv3 = _conv_transpose_layer(self.n_filters, 3, 3, stride=2, padding=3, output_padding=1)
+		
+		self.encoder = nn.Sequential(nn.Conv2d(3, 32, kernel_size=3, stride=1,padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
+			
+			nn.Conv2d(32, 64, kernel_size=3, stride=1,padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
+			
+			nn.Conv2d(64, 64, kernel_size=3, stride=1,padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
+            # nn.Linear(64*3*3,400),nn.LeakyReLU(True),
+            # nn.Linear(400,256),nn.LeakyReLU(True)
+		          
+			
+			# nn.Conv2d(16, 8, kernel_size=3, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
+			#
+			# nn.Conv2d(8, 8, kernel_size=3, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2))
+		                             )
+		self.decoder = nn.Sequential(
+			# nn.Linear(256,400), nn.LeakyReLU(True),
+			# nn.Linear(400,3*3*64), nn.LeakyReLU(True),
+			#Interpolate(mode='bilinear', scale_factor=2),
+			nn.ConvTranspose2d(64, 64, kernel_size=3,stride=2,padding=1,output_padding=1), nn.LeakyReLU(True),
+			
+			# Interpolate(mode='bilinear', scale_factor=2),
+			nn.ConvTranspose2d(64, 32, kernel_size=3,stride=2,padding=1,output_padding=1), nn.LeakyReLU(True),
+			
+			# Interpolate(mode='bilinear', scale_factor=2),
+			nn.ConvTranspose2d(32, 3, kernel_size=3,stride=2,padding=1,output_padding=1), nn.LeakyReLU(True),
+			
+			# Interpolate(mode='bilinear', scale_factor=2),
+			# nn.ConvTranspose2d(32, 64, kernel_size=3,stride=2), nn.LeakyReLU(True),
+			
+			# Interpolate(mode='bilinear', scale_factor=2),
+			# nn.ConvTranspose2d(64, 3, kernel_size=3,stride=2,padding=1), nn.LeakyReLU(True),
+			
+			nn.Tanh())
+		
 		mkdir_p(self.path_to_save)
-		summary(self, (3, 84, 84))
-	
+		if self.use_cuda:
+			self = self.cuda()
+			summary(self.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
+		else:
+			summary(self, (Config.data.channels, Config.data.image_size, Config.data.image_size))
 	def forward(self, x):
-		# the autoencoder has 3 con layers and 3 deconv layers (transposed conv). All layers but the last have ReLu
-		# activation function
-		x = self.layer1(x)
-		x = self.layer2(x)
-		x = self.layer3(x)
-		x = x.view(x.size()[0], -1)
-		x = self.emb(x)
-		x = x.reshape(-1, 8, 8, 8)
-		x = self.deconv1(x)
-		x = self.deconv2(x)
-		self.decoded = self.deconv3(x)
-		x = torch.tanh(self.decoded)
-		return  x.reshape((-1,3,84,84))
+		# print("Start Encode: ", x.shape)
+		x = self.encoder(x)
+		# print("Finished Encode: ", x.shape)
+		x = self.decoder(x)
+		# print("Finished Decode: ", x.shape)
+		return x
 	
 	def load_saved_model(self, path, model):
 		latest_path = find_latest(path + "/")
@@ -196,12 +236,9 @@ class AutoEncoder(nn.Module):
 				new_state_dict[name] = v
 			
 			model.load_state_dict(new_state_dict)
-			model.optimizer.load_state_dict(checkpoint['optimizer'])
 		except:
 			# else:
 			model.load_state_dict(checkpoint['net'])
-			if model.optimizer is not None:
-				model.optimizer.load_state_dict(checkpoint['optimizer'])
 		
 		print(f"Load checkpoints...! {latest_path}")
 		return step_count, model
@@ -218,20 +255,21 @@ class AutoEncoder(nn.Module):
 		torch.save({"step_count": step, 'net': self.state_dict(), 'optimizer': self.optimizer.state_dict(), }, full_path)
 		print(f"Save checkpoints...! {full_path}")
 
-def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement,num_aug=5):
-	ae= AutoEncoder()
+
+def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement, num_aug=5):
+	ae = AutoEncoder()
 	epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
 	ae.eval()
 	print(f"AutoEncoer has been loaded epoch:{epoch}, path:{ae.path_to_save}")
 	
-	policy =  ae # ImageNetPolicy()
+	policy = ae  # ImageNetPolicy()
 	samples = list(samples)
 	cur_batch = []
 	if replacement:
 		for _ in range(num_batches):
 			for _ in range(num_aug):
-				for x in  samples:
-					cur_batch.append((totensor(policy(x[0])),x[1]))
+				for x in samples:
+					cur_batch.append((totensor(policy(x[0])), x[1]))
 			yield random.sample(cur_batch, batch_size)
 		return
 	batch_count = 0
@@ -240,9 +278,9 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 		for idx in range(num_aug):
 			for sample in samples:
 				if idx == 0:
-					cur_batch.append((totensor(sample[0]),sample[1]))
+					cur_batch.append((totensor(sample[0]), sample[1]))
 				else:
-					cur_batch.append((policy(torch.unsqueeze(totensor(sample[0]),0)).squeeze(),sample[1]))
+					cur_batch.append((policy(torch.unsqueeze(totensor(sample[0]), 0)).squeeze(), sample[1]))
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch
@@ -250,6 +288,7 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 		batch_count += 1
 		if batch_count == num_batches:
 			return
+
 
 def _split_train_test(samples, test_shots=1):
 	"""

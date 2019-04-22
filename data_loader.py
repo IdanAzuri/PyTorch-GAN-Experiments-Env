@@ -18,7 +18,7 @@ def get_loader(mode):
 	transform_list_test = []
 	is_train = mode == "train"
 	if config.train.use_augmentation:
-		transform_list_train.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
+		transform_list_train.extend([transforms.Resize((config.data.image_size,config.data.image_size)), ImageNetPolicy()])
 	transform_list_train.extend([transforms.Resize((config.data.image_size, config.data.image_size)),
 	                       transforms.ToTensor(),
 	                       # transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -28,7 +28,7 @@ def get_loader(mode):
 	transform_train = transforms.Compose(transform_list_train)
 	
 	if config.predict.use_augmentation:
-		transform_list_test.extend([transforms.Resize(config.data.image_size), ImageNetPolicy()])
+		transform_list_test.extend([transforms.Resize((config.data.image_size,config.data.image_size)), ImageNetPolicy()])
 	transform_list_test.extend([transforms.Resize((config.data.image_size, config.data.image_size)),
 	                             transforms.ToTensor(),
 	                             # transforms.Normalize(mean=[0.485, 0.456, 0.406],
