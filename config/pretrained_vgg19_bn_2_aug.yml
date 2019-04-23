@@ -30,7 +30,7 @@ model:
     train_shot: 15
 train:
     use_augmentation: False
-    model_dir: "outputs/pretrained_vgg_19_aug_ae"
+    model_dir: "outputs/outputs/pretrained_vgg19_bn_2_aug_ae"
     batch_size: 64
     shuffle: true
     
