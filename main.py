@@ -5,13 +5,13 @@ import atexit
 import random
 
 import matplotlib
+matplotlib.use('Agg')
 
 import basic_utils
 from data_loader import *
 from model import Model
 
 
-matplotlib.use('Agg')
 
 DATA_DIR = 'data/miniimagenet'
 

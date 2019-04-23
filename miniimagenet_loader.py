@@ -14,6 +14,7 @@ import torch
 from PIL import Image, ImageFile
 from hbconfig import Config
 from torch import nn
+from torch.autograd import Variable
 from torch.optim import Adam
 from torchvision.transforms import transforms, ToTensor
 
@@ -152,7 +153,51 @@ class Interpolate(nn.Module):
 		x = self.interp(x, size=self.size, mode=self.mode, align_corners=False)
 		return x
 
+class GaussianNoise(nn.Module):
+	"""Gaussian noise regularizer.
 
+	Args:
+		sigma (float, optional): relative standard deviation used to generate the
+			noise. Relative means that it will be multiplied by the magnitude of
+			the value your are adding the noise to. This means that sigma can be
+			the same regardless of the scale of the vector.
+		is_relative_detach (bool, optional): whether to detach the variable before
+			computing the scale of the noise. If `False` then the scale of the noise
+			won't be seen as a constant but something to optimize: this will bias the
+			network to generate vectors with smaller values.
+	"""
+	
+	def __init__(self, sigma=0.1, is_relative_detach=True):
+		super().__init__()
+		self.sigma = sigma
+		self.is_relative_detach = is_relative_detach
+		self.noise = torch.Tensor(0)
+	
+	def forward(self, x):
+		if self.training and self.sigma != 0:
+			scale = self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
+			sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
+			x = x + sampled_noise
+		return x
+class DynamicGNoise(nn.Module):
+	def __init__(self, shape, std=0.05):
+		super().__init__()
+		self.noise = Variable(torch.zeros(shape,shape).cuda())
+		self.std   = std
+	
+	def forward(self, x):
+		if not self.training: return x
+		self.noise.data.normal_(0, std=self.std)
+		
+		print(x.size(), self.noise.size())
+		return x + self.noise
+
+def gaussian(ins, is_training=True, mean=0.0, stddev=0.1):
+	if is_training:
+		noise = Variable(ins.data.new(ins.size()).normal_(mean, stddev))
+		return ins + noise
+	return ins
+	
 class AutoEncoder(nn.Module):
 	def __init__(self):
 		super(AutoEncoder, self).__init__()
@@ -185,6 +230,8 @@ class AutoEncoder(nn.Module):
 		self.decoder = nn.Sequential(  # nn.Linear(256,400), nn.LeakyReLU(True),
 			# nn.Linear(400,3*3*64), nn.LeakyReLU(True),
 			# Interpolate(mode='bilinear', scale_factor=2),
+			# GaussianNoise(sigma=0.1),
+			# DynamicGNoise(),
 			nn.ConvTranspose2d(64, 64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.LeakyReLU(True),
 			
 			# Interpolate(mode='bilinear', scale_factor=2),
@@ -211,6 +258,7 @@ class AutoEncoder(nn.Module):
 	def forward(self, x):
 		# print("Start Encode: ", x.shape)
 		x = self.encoder(x)
+		x= gaussian(x)
 		# print("Finished Encode: ", x.shape)
 		x = self.decoder(x)
 		# print("Finished Decode: ", x.shape)
