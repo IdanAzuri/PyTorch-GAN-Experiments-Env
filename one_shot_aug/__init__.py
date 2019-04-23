@@ -1,29 +1,26 @@
 import os
-from collections import OrderedDict
 from copy import deepcopy
 
+import matplotlib
 import numpy as np
 import torch
 from hbconfig import Config
 from torch.autograd import Variable
-from torch.backends import cudnn
-from torch.nn.utils import parameters_to_vector, vector_to_parameters
-from torch.optim import lr_scheduler
-from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.transforms import ToTensor
 
 import utils
 from AutoAugment.autoaugment import ImageNetPolicy
+from basic_utils import saving_config
 from logger import Logger
 from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test, _mini_batches_with_augmentation
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
-from utils import AverageMeter, accuracy, mkdir_p
-from basic_utils import saving_config
-from miniimagenet_loader import AutoEncoder
-import matplotlib
+from utils import mkdir_p
+
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from miniimagenet_loader import AutoEncoder
 
 
 meta_step_size = 1.  # stepsize of outer optimization, i.e., meta-optimization
@@ -46,7 +43,7 @@ def augments_dataset(batch, k=5):
 			if isinstance(transformed, (list,)):
 				images.append((tensor(transformed[0]), label))
 			else:
-				images.append((tensor(transformed), label))  # labels.append(label)
+				images.append((tensor(transformed), label))
 		images.append((tensor(img_), label))
 	return images
 
@@ -100,7 +97,9 @@ class OneShotAug():
 		ae = AutoEncoder()
 		epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
 		ae.eval()
-		self.ae = ae.cuda()
+		self.ae = ae
+		if self.use_cuda:
+			self.ae = ae.cuda()
 		print(f"AutoEncoer has been loaded epoch:{epoch}, path:{ae.path_to_save}")
 	
 	def train_fn(self, criterion, optimizer, resume=True):
@@ -123,7 +122,11 @@ class OneShotAug():
 		# switch to train mode
 		# if self.classifier.arch.startswith('alexnet') or self.classifier.arch.startswith('vgg'):
 		if self.use_cuda:
-			self.meta_net.cuda()  # self.net = torch.nn.DataParallel(self.net).to(self.device)  # if torch.cuda.device_count() > 1:  # 	print("Using ", torch.cuda.device_count(), " GPUs!")  # cudnn.benchmark = True
+			self.meta_net.cuda()
+		# self.net = torch.nn.DataParallel(self.net).to(self.device)
+		# if torch.cuda.device_count() > 1:
+		# 	print("Using ", torch.cuda.device_count(), " GPUs!")
+		# cudnn.benchmark = True
 		print('Total params: %.2fK' % (sum(p.numel() for p in self.meta_net.parameters()) / 1000.0))
 		for current_meta_step in range(self.prev_meta_step_count, Config.train.meta_iters):
 			fast_net = self.meta_net.clone(self.use_cuda)
@@ -150,10 +153,10 @@ class OneShotAug():
 				# loading back optimizer state
 				# optimizer.load_state_dict(state)
 				self.logger.append([current_meta_step, self.learning_rate, train_acc_eval, valid_acc_eval])
-			
-			# TODO: implement update when lowest loss  # if validation_loss < best_loss:  # 	best_loss = validation_loss  # 	best_model_wts = deepcopy(self.classifier.state_dict())
-			
-			# update learning rate  # self.exp_lr_scheduler.step()
+		
+		# TODO: implement update when lowest loss  # if validation_loss < best_loss:  # 	best_loss = validation_loss  # 	best_model_wts = deepcopy(self.classifier.state_dict())
+		
+		# update learning rate  # self.exp_lr_scheduler.step()
 		
 		# predict on test set after training finished
 		self.predict(self.loss_criterion)
@@ -253,7 +256,8 @@ class OneShotAug():
 		fast_net.train()
 		is_augment = Config.predict.use_augmentation
 		if is_augment:
-			mini_batches = _mini_batches_with_augmentation(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement, num_aug=5, policy=self.ae)
+			mini_batches = _mini_batches_with_augmentation(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement, num_aug=5, policy=self.ae,
+			                                               use_cuda=self.use_cuda)
 		else:
 			mini_batches = _mini_batches(train_set, Config.eval.inner_batch_size, Config.eval.eval_inner_iters, self.replacement)
 		# train on mini batches of the test set
@@ -291,7 +295,7 @@ class OneShotAug():
 		transform_list_test = []
 		# if Config.predict.use_augmentation:
 		# transform_list_test.extend([transforms.Resize(Config.data.image_size), ImageNetPolicy(Config.predict.num_sample_augmentation)])
-		transform_list_test.extend([transforms.Resize((Config.data.image_size, Config.data.image_size)), # transforms.ToTensor(),
+		transform_list_test.extend([transforms.Resize((Config.data.image_size, Config.data.image_size)),  # transforms.ToTensor(),
 		                            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
 		                            #                      std=[0.229, 0.224, 0.225])
 		                            ])
@@ -319,8 +323,7 @@ class OneShotAug():
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
 		test_inputs_tensors = pil_images_to_tensors(test_inputs)
-		# show_images(test_inputs_tensors, test_labels)
-		
+		# show_images(test_inputs_tensors, test_labels, 1)
 		if self._transductive:
 			if self.use_cuda:
 				test_inputs_variables = Variable(torch.stack(test_inputs_tensors)).cuda()
@@ -392,16 +395,15 @@ def show_image(image):
 	# Print the image
 	plt.imshow(np.transpose(image, (1, 2, 0)), interpolation='nearest')
 	# plt.imshow(np.transpose(image, (1, 2, 0)))
-	plt.show()  # Show Image
+	plt.show()
 
 
 def show_images(images, labels, idx):
 	# Convert image to numpy
 	plt.clf()
-	print(len(labels))
 	rows = len(labels) // 5
 	columns = 5
-	fig = plt.figure(figsize=(10,10))
+	fig = plt.figure(figsize=(10, 10))
 	for i in range(1, columns * rows + 1):
 		ax = fig.add_subplot(rows, columns, i)
 		ax.axis('off')

@@ -1,46 +1,18 @@
 from __future__ import print_function
 
 import argparse
-import os
-from collections import OrderedDict
 
 # import matplotlib.pyplot as plt
 import torch.nn as nn
-from torch.autograd import Variable
-from torch.optim import Adam
-from torchsummary import summary
 
 from data_loader import *
-from miniimagenet_loader import AutoEncoder,show_image
-from utils import _conv_layer, _conv_transpose_layer
-from utils import get_sorted_path, find_latest, mkdir_p
+from miniimagenet_loader import AutoEncoder
+from one_shot_aug import show_image
 
 
 batch_size = 64  # Number of samples in each batch
 epoch_num = 5  # Number of epochs to train the network
 lr = 0.001  # Learning rate
-
-
-def resize_batch(imgs, img_size=84, img_dim=3):
-	# A function to resize a batch of MNIST images to (32, 32)
-	# Args:
-	#   imgs: a numpy array of size [batch_size, 28 X 28].
-	# Returns:
-	#   a pytorch Variable of size [batch_size, 1, 32, 32].
-	
-	# reshape the sample to a batch of images in pytorch order (batch, channels, height, width)
-	imgs = imgs.reshape((-1, img_dim, img_size, img_size))
-	
-	# resize the images to (32, 32)
-	resized_imgs = np.zeros((imgs.shape[0], img_dim, img_size, img_size))
-	for i in range(imgs.shape[0]):
-		resized_imgs[i, 0, ...] = transforms.transform.resize(imgs[i, 0, ...], (img_size, img_size))
-	
-	resized_imgs = torch.from_numpy(resized_imgs).float()  # convert the numpy array into torch tensor
-	if is_cuda:
-		resized_imgs = Variable(resized_imgs).cuda()  # create a torch variable and transfer it into GPU
-	return resized_imgs
-
 
 # class AutoEncoder(nn.Module):
 # 	def __init__(self):
@@ -184,7 +156,7 @@ def resize_batch(imgs, img_size=84, img_dim=3):
 # 	def forward(self, x):
 # 		x = self.interp(x, size=self.size, mode=self.mode, align_corners=False)
 # 		return x
-	
+
 # class AutoEncoderConv(nn.Module):
 # 	def __init__(self):
 # 		super(AutoEncoderConv, self).__init__()
