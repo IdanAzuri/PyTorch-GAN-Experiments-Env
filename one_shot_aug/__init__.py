@@ -62,6 +62,7 @@ class OneShotAug():
 		self.seed = seed
 		self._transductive = Config.model.transductive
 		self.use_cuda = True if torch.cuda.is_available() else False
+		print(self.use_cuda)
 		self.device = torch.device("cuda" if self.use_cuda else "cpu")
 		# self.tensorboard = utils.TensorBoard(Config.train.model_dir)
 		# self.classifier_optimizer = None
