@@ -387,7 +387,7 @@ def count_correct(pred, target):
 # Show Image
 def show_image(image):
 	# Convert image to numpy
-	image = image.detach().numpy()
+	image = image.cpu().detach().numpy()
 	
 	# Un-normalize the image
 	# image[0] = image[0] * [0.229, 0.224, 0.225] +[0.485, 0.456, 0.406]
