@@ -15,9 +15,9 @@ from PIL import Image, ImageFile
 from hbconfig import Config
 from torch import nn
 from torch.optim import Adam
-from torchsummary import summary
 from torchvision.transforms import transforms, ToTensor
 
+from AutoAugment.autoaugment import ImageNetPolicy
 from utils import find_latest, mkdir_p, get_sorted_path
 
 
@@ -67,7 +67,7 @@ class ImageNetClass:
 		self._cache = {}
 		self.transform = transform
 		if transform is None:
-			self.transform = transforms.Compose([transforms.Resize((Config.data.image_size,Config.data.image_size)), # transforms.ToTensor(),
+			self.transform = transforms.Compose([transforms.Resize((Config.data.image_size, Config.data.image_size)),  # transforms.ToTensor(),
 			                                     # transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 			                                     ])
 	
@@ -94,7 +94,7 @@ class ImageNetClass:
 			
 			return tmp
 		with open(os.path.join(self.dir_path, name), 'rb') as in_file:
-			img = Image.open(in_file).resize((Config.data.image_size,Config.data.image_size)).convert('RGB')
+			img = Image.open(in_file).resize((Config.data.image_size, Config.data.image_size)).convert('RGB')
 			self._cache[name] = self.transform(img)
 			return self._read_image(name)
 
@@ -171,30 +171,27 @@ class AutoEncoder(nn.Module):
 		# self.deconv2 = _conv_transpose_layer(self.n_filters // 2, self.n_filters, 3, stride=2, padding=2, output_padding=1)
 		# self.deconv3 = _conv_transpose_layer(self.n_filters, 3, 3, stride=2, padding=3, output_padding=1)
 		
-		self.encoder = nn.Sequential(nn.Conv2d(3, 32, kernel_size=3, stride=1,padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
-			
-			nn.Conv2d(32, 64, kernel_size=3, stride=1,padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
-			
-			nn.Conv2d(64, 64, kernel_size=3, stride=1,padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
-            # nn.Linear(64*3*3,400),nn.LeakyReLU(True),
-            # nn.Linear(400,256),nn.LeakyReLU(True)
-		          
-			
-			# nn.Conv2d(16, 8, kernel_size=3, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
-			#
-			# nn.Conv2d(8, 8, kernel_size=3, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2))
+		self.encoder = nn.Sequential(nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
+		
+		                             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
+		
+		                             nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),  # nn.Linear(64*3*3,400),nn.LeakyReLU(True),
+		                             # nn.Linear(400,256),nn.LeakyReLU(True)
+		
+		                             # nn.Conv2d(16, 8, kernel_size=3, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2),
+		                             #
+		                             # nn.Conv2d(8, 8, kernel_size=3, padding=1), nn.LeakyReLU(True), nn.MaxPool2d(2))
 		                             )
-		self.decoder = nn.Sequential(
-			# nn.Linear(256,400), nn.LeakyReLU(True),
+		self.decoder = nn.Sequential(  # nn.Linear(256,400), nn.LeakyReLU(True),
 			# nn.Linear(400,3*3*64), nn.LeakyReLU(True),
-			#Interpolate(mode='bilinear', scale_factor=2),
-			nn.ConvTranspose2d(64, 64, kernel_size=3,stride=2,padding=1,output_padding=1), nn.LeakyReLU(True),
+			# Interpolate(mode='bilinear', scale_factor=2),
+			nn.ConvTranspose2d(64, 64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.LeakyReLU(True),
 			
 			# Interpolate(mode='bilinear', scale_factor=2),
-			nn.ConvTranspose2d(64, 32, kernel_size=3,stride=2,padding=1,output_padding=1), nn.LeakyReLU(True),
+			nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1), nn.LeakyReLU(True),
 			
 			# Interpolate(mode='bilinear', scale_factor=2),
-			nn.ConvTranspose2d(32, 3, kernel_size=3,stride=2,padding=1,output_padding=1), nn.LeakyReLU(True),
+			nn.ConvTranspose2d(32, 3, kernel_size=3, stride=2, padding=1, output_padding=1), nn.LeakyReLU(True),
 			
 			# Interpolate(mode='bilinear', scale_factor=2),
 			# nn.ConvTranspose2d(32, 64, kernel_size=3,stride=2), nn.LeakyReLU(True),
@@ -205,11 +202,12 @@ class AutoEncoder(nn.Module):
 			nn.Tanh())
 		
 		mkdir_p(self.path_to_save)
-		# if self.use_cuda:
-		# 	self = self.cuda()
-		# 	summary(self.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
-		# else:
-		# 	summary(self, (Config.data.channels, Config.data.image_size, Config.data.image_size))
+	
+	# if self.use_cuda:
+	# 	self = self.cuda()
+	# 	summary(self.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
+	# else:
+	# 	summary(self, (Config.data.channels, Config.data.image_size, Config.data.image_size))
 	def forward(self, x):
 		# print("Start Encode: ", x.shape)
 		x = self.encoder(x)
@@ -256,8 +254,7 @@ class AutoEncoder(nn.Module):
 		print(f"Save checkpoints...! {full_path}")
 
 
-def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement, num_aug=5,policy=None):
-	
+def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement, num_aug=5, policy=None, use_cuda=False):
 	policy = policy  # ImageNetPolicy()
 	if policy is None:
 		policy = ImageNetPolicy()
@@ -278,8 +275,12 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 				if idx == 0:
 					cur_batch.append((totensor(sample[0]), sample[1]))
 				else:
-					cur_batch.append((policy(torch.unsqueeze(totensor(sample[0]), 0).cuda()).squeeze(), sample[1]))
-					print("11")
+					if use_cuda:
+						img = torch.unsqueeze(totensor(sample[0]), 0).cuda()
+					else:
+						img = torch.unsqueeze(totensor(sample[0]), 0)
+					
+					cur_batch.append((policy(img).squeeze(), sample[1]))
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch
