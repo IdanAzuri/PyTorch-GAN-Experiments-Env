@@ -264,9 +264,8 @@ class OneShotAug():
 		for batch_idx, batch in enumerate(mini_batches):
 			try:
 				inputs, labels = zip(*batch)
-				print(batch_idx)
-				if batch_idx % 2 == 0:
-					show_images(inputs, labels, batch_idx)
+				# if batch_idx % 2 == 0:
+					# show_images(inputs, labels, batch_idx)
 				inputs = Variable(torch.stack(inputs))
 				labels = Variable(torch.from_numpy(np.array(labels)))
 				if self.use_cuda:
