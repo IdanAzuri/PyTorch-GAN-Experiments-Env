@@ -379,19 +379,20 @@ def count_correct(pred, target):
 
 
 # Show Image
-def show_image(image):
+def show_image(image, idx):
 	# Convert image to numpy
 	# image = image[0].cpu().detach().numpy()
 	
 	# Un-normalize the image
 	# image[0] = image[0] * [0.229, 0.224, 0.225] +[0.485, 0.456, 0.406]
 	
-	image = to_img(image[0].cpu())
-	image = np.array(image, np.int32)
-	# image = (image*255).astype(np.uint8)
+	image = to_img(image[1].cpu())
+	# image = np.array(image, np.int32)
+	image = (image * 255).astype(np.uint8)
 	plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
-	# plt.imshow(np.transpose(image, (1, 2, 0)))
-	plt.show()
+	# plt.show()
+	plt.savefig(f"ae_{idx}.png")
+	print("Saving imgs")
 
 
 def show_images(images, labels, idx):
@@ -405,6 +406,7 @@ def show_images(images, labels, idx):
 		ax.axis('off')
 		ax.set_title(labels[i - 1])
 		image = to_img(images[i - 1])
+		image = (image * 255).astype(np.uint8)
 		plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
 	fig.savefig(f"ae_{idx}.png")
 	print("Saving imgs")

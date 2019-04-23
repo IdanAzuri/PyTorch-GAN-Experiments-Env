@@ -1,5 +1,6 @@
 from __future__ import print_function
-
+import matplotlib
+matplotlib.use('Agg')
 import argparse
 
 # import matplotlib.pyplot as plt
@@ -223,7 +224,7 @@ lr = 0.001  # Learning rate
 # 	for ep in range(1):  # epochs loop
 # 		for batch_img, batch_label in valid_dataset:  # batches loop
 # 			# input = resize_batch(batch_img)
-# 			
+#
 # 			# pass the test samples to the network and get the reconstructed samples (output of autoencoder)
 # 			recon_img = ae(batch_img)
 # 	# transfer the outputs and the inputs from GPU to CPU and convert into numpy array
@@ -279,13 +280,13 @@ if __name__ == '__main__':
 		print(f"Model has been loaded epoch:{epoch}, path:{ae.path_to_save}")
 	else:
 		epoch = 0
-	for epoch in range(epoch, 30):  # epochs loop
+	for epoch in range(0, 30):  # epochs loop
 		for batch_idx, (batch_img, batch_label) in enumerate(train_dataset):  # batches loop
 			if is_cuda:
 				batch_img = batch_img.cuda()
 				batch_label = batch_label.cuda()
 			output = ae(batch_img)
-			# show_image(output)
+			show_image(output,batch_idx)
 			loss = criterion(output, batch_img)  # calculate the loss
 			if batch_idx % 50 == 0:
 				print(f'batch_idx:{batch_idx} loss: ', loss.data.item())
