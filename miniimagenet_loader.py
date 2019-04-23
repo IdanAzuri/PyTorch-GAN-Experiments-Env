@@ -205,11 +205,11 @@ class AutoEncoder(nn.Module):
 			nn.Tanh())
 		
 		mkdir_p(self.path_to_save)
-		if self.use_cuda:
-			self = self.cuda()
-			summary(self.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
-		else:
-			summary(self, (Config.data.channels, Config.data.image_size, Config.data.image_size))
+		# if self.use_cuda:
+		# 	self = self.cuda()
+		# 	summary(self.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
+		# else:
+		# 	summary(self, (Config.data.channels, Config.data.image_size, Config.data.image_size))
 	def forward(self, x):
 		# print("Start Encode: ", x.shape)
 		x = self.encoder(x)
@@ -256,13 +256,11 @@ class AutoEncoder(nn.Module):
 		print(f"Save checkpoints...! {full_path}")
 
 
-def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement, num_aug=5):
-	ae = AutoEncoder()
-	epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
-	ae.eval()
-	print(f"AutoEncoer has been loaded epoch:{epoch}, path:{ae.path_to_save}")
+def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacement, num_aug=5,policy=None):
 	
-	policy = ae  # ImageNetPolicy()
+	policy = policy  # ImageNetPolicy()
+	if policy is None:
+		policy = ImageNetPolicy()
 	samples = list(samples)
 	cur_batch = []
 	if replacement:
@@ -280,7 +278,8 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 				if idx == 0:
 					cur_batch.append((totensor(sample[0]), sample[1]))
 				else:
-					cur_batch.append((policy(torch.unsqueeze(totensor(sample[0]), 0)).squeeze(), sample[1]))
+					cur_batch.append((policy(torch.unsqueeze(totensor(sample[0]), 0).cuda()).squeeze(), sample[1]))
+					print("11")
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch

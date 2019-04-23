@@ -4,14 +4,14 @@ import argparse
 import os
 from collections import OrderedDict
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.optim import Adam
 from torchsummary import summary
 
 from data_loader import *
-from miniimagenet_loader import AutoEncoder
+from miniimagenet_loader import AutoEncoder,show_image
 from utils import _conv_layer, _conv_transpose_layer
 from utils import get_sorted_path, find_latest, mkdir_p
 
@@ -244,36 +244,36 @@ def resize_batch(imgs, img_size=84, img_dim=3):
 # 		x = self.decoder(x)
 # 		print("Finished Decode: ", x.shape)
 # 		return x
-def show():
-	global ep, batch_img, batch_label
-	# ------ test the trained network ----- #
-	# read a batch of test data containing 50 samples
-	for ep in range(1):  # epochs loop
-		for batch_img, batch_label in valid_dataset:  # batches loop
-			# input = resize_batch(batch_img)
-			
-			# pass the test samples to the network and get the reconstructed samples (output of autoencoder)
-			recon_img = ae(batch_img)
-	# transfer the outputs and the inputs from GPU to CPU and convert into numpy array
-	recon_img = recon_img.data.cpu().numpy()
-	batch_img = batch_img.data.cpu().numpy()
-	# roll the second axis so the samples follow the matplotlib order (batch, height, width, channels)
-	# (batch, channels, height, width) --> (batch, height, width, channels)
-	recon_img = np.moveaxis(recon_img, 1, -1)
-	batch_img = np.moveaxis(batch_img, 1, -1)
-	# plot the reconstructed images and their ground truths (inputs)
-	plt.title('Reconstructed Images')
-	rows = 1
-	columns = 5
-	for i in range(1, 5):
-		plt.subplot(5, 1, i + 1)
-		plt.imshow(recon_img[i, ..., 0])
-	plt.figure(2)
-	plt.title('Input Images')
-	for i in range(5):
-		plt.subplot(5, 1, i + 1)
-		plt.imshow(batch_img[i, ..., 0])
-	plt.show()
+# def show():
+# 	global ep, batch_img, batch_label
+# 	# ------ test the trained network ----- #
+# 	# read a batch of test data containing 50 samples
+# 	for ep in range(1):  # epochs loop
+# 		for batch_img, batch_label in valid_dataset:  # batches loop
+# 			# input = resize_batch(batch_img)
+# 			
+# 			# pass the test samples to the network and get the reconstructed samples (output of autoencoder)
+# 			recon_img = ae(batch_img)
+# 	# transfer the outputs and the inputs from GPU to CPU and convert into numpy array
+# 	recon_img = recon_img.data.cpu().numpy()
+# 	batch_img = batch_img.data.cpu().numpy()
+# 	# roll the second axis so the samples follow the matplotlib order (batch, height, width, channels)
+# 	# (batch, channels, height, width) --> (batch, height, width, channels)
+# 	recon_img = np.moveaxis(recon_img, 1, -1)
+# 	batch_img = np.moveaxis(batch_img, 1, -1)
+# 	# plot the reconstructed images and their ground truths (inputs)
+# 	plt.title('Reconstructed Images')
+# 	rows = 1
+# 	columns = 5
+# 	for i in range(1, 5):
+# 		plt.subplot(5, 1, i + 1)
+# 		plt.imshow(recon_img[i, ..., 0])
+# 	plt.figure(2)
+# 	plt.title('Input Images')
+# 	for i in range(5):
+# 		plt.subplot(5, 1, i + 1)
+# 		plt.imshow(batch_img[i, ..., 0])
+# 	plt.show()
 
 
 if __name__ == '__main__':
@@ -313,6 +313,7 @@ if __name__ == '__main__':
 				batch_img = batch_img.cuda()
 				batch_label = batch_label.cuda()
 			output = ae(batch_img)
+			show_image(output)
 			loss = criterion(output, batch_img)  # calculate the loss
 			if batch_idx % 50 == 0:
 				print(f'batch_idx:{batch_idx} loss: ', loss.data.item())
