@@ -4,10 +4,14 @@ import argparse
 import atexit
 import random
 
+import matplotlib
+
 import basic_utils
 from data_loader import *
 from model import Model
 
+
+matplotlib.use('Agg')
 
 DATA_DIR = 'data/miniimagenet'
 

@@ -1,6 +1,7 @@
 import json
 import os.path
 
+import matplotlib.pyplot as plt
 import requests
 from hbconfig import Config
 
@@ -15,9 +16,6 @@ def send_message_to_slack(config_name):
 		print(data["text"])
 	else:
 		requests.post(Config.slack.webhook_url, data=json.dumps(data))
-
-
-import matplotlib.pyplot as plt
 
 
 label_names = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']

@@ -1,7 +1,7 @@
 import os
 from copy import deepcopy
 
-import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from hbconfig import Config
@@ -13,14 +13,9 @@ import utils
 from AutoAugment.autoaugment import ImageNetPolicy
 from basic_utils import saving_config
 from logger import Logger
-from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test, _mini_batches_with_augmentation
+from miniimagenet_loader import read_dataset_test, _sample_mini_dataset, _mini_batches, _split_train_test, _mini_batches_with_augmentation, AutoEncoder
 from one_shot_aug.module import PretrainedClassifier, MiniImageNetModel
 from utils import mkdir_p
-
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from miniimagenet_loader import AutoEncoder
 
 
 meta_step_size = 1.  # stepsize of outer optimization, i.e., meta-optimization
@@ -265,7 +260,7 @@ class OneShotAug():
 			try:
 				inputs, labels = zip(*batch)
 				# if batch_idx % 2 == 0:
-					# show_images(inputs, labels, batch_idx)
+				# show_images(inputs, labels, batch_idx)
 				inputs = Variable(torch.stack(inputs))
 				labels = Variable(torch.from_numpy(np.array(labels)))
 				if self.use_cuda:
@@ -392,7 +387,7 @@ def show_image(image):
 	# image[0] = image[0] * [0.229, 0.224, 0.225] +[0.485, 0.456, 0.406]
 	
 	image = to_img(image[0].cpu())
-	image=np.array(image,np.int32)
+	image = np.array(image, np.int32)
 	# image = (image*255).astype(np.uint8)
 	plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
 	# plt.imshow(np.transpose(image, (1, 2, 0)))
@@ -421,7 +416,7 @@ def set_learning_rate(optimizer, lr):
 
 
 def to_img(x):
-	x=x.cpu()
+	x = x.cpu()
 	out = 0.5 * (x + 1)
 	out = x.clamp(0, 1)
 	out = out.view(-1, 3, Config.data.image_size, Config.data.image_size)
