@@ -393,7 +393,7 @@ def show_image(image):
 	# image[0] = image[0] * [0.229, 0.224, 0.225] +[0.485, 0.456, 0.406]
 	
 	# Print the image
-	image = to_img(image)
+	# image = to_img(image)
 	plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
 	# plt.imshow(np.transpose(image, (1, 2, 0)))
 	plt.show()
