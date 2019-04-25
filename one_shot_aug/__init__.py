@@ -90,7 +90,7 @@ class OneShotAug():
 		# Print Config setting
 		saving_config(os.path.join(self.c_path, "config_log.txt"))
 		ae = AutoEncoder()
-		epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
+		epoch, ae = ae.load_saved_model("ae/model", ae)
 		ae.eval()
 		self.ae = ae
 		if self.use_cuda:
