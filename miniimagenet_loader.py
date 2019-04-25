@@ -202,7 +202,7 @@ def gaussian(ins, is_training=True, mean=0.0, stddev=0.1):
 class AutoEncoder(nn.Module):
 	def __init__(self):
 		super(AutoEncoder, self).__init__()
-		self.path_to_save = Config.model_dir
+		self.path_to_save = Config.train.model_dir
 		self.use_cuda = torch.cuda.is_available()
 		# conv layers: (in_channel size, out_channels size, kernel_size, stride, padding)
 		# self.n_filters = 32
