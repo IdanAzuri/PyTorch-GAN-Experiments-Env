@@ -3,7 +3,8 @@ data:
     mnist_path: "data/mnist"
     svhn_path: "data/svhn"
     cifar10_path: "data/cifar10"
-    miniimagenet_path: "data/miniimagenet"
+    miniimagenet_path_train: "../data/miniimagenet/train"
+    miniimagenet_path_valid: "../data/miniimagenet/val"
     image_size: 224
     num_workers: 1
     channels: 3
@@ -30,11 +31,11 @@ model:
     train_shot: 15
 train:
     use_augmentation: False
-    model_dir: "outputs/ae"
+    model_dir: "outputs/ae_denoising"
     shuffle: true
     add_noise: True
-    noise_std: 0.2
-    noise_mean: 0.15
+    noise_std: 0.15
+    noise_mean: 0.0
     learning_rate: 0.001
     meta_lr: 0.001
     optim_betas:
