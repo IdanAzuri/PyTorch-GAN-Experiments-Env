@@ -280,7 +280,7 @@ if __name__ == '__main__':
 		print(f"Model has been loaded epoch:{epoch}, path:{ae.path_to_save}")
 	else:
 		epoch = 0
-	for epoch in range(0, 30):  # epochs loop
+	for epoch in range(0, 2):  # epochs loop
 		for batch_idx, (batch_img, batch_label) in enumerate(train_dataset):  # batches loop
 			if is_cuda:
 				batch_img = batch_img.cuda()
