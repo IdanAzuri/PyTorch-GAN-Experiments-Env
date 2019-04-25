@@ -30,7 +30,9 @@ train:
     use_augmentation: False
     model_dir: "outputs/4conv_aug"
     shuffle: true
-    
+    add_noise: False
+    noise_std: 0.0
+    noise_mean: 0.0
     learning_rate: 0.001
     meta_lr: 0.001
     optim_betas:

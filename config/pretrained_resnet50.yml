@@ -36,7 +36,9 @@ train:
         - 0
         - 0.999
 
-
+    add_noise: False
+    noise_std: 0.0
+    noise_mean: 0.0
     save_checkpoints_steps: 1000
     verbose_step_count: 50
     inner_batch_size: 10 # batch size for every inner-loop training iteration.
