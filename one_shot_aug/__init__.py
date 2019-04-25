@@ -332,10 +332,10 @@ class OneShotAug():
 			train_inputs = pil_images_to_tensors(train_inputs)
 			if self.use_cuda:
 				test_inputs_variables = Variable(torch.stack(train_inputs)).cuda()
-				test_inputs_variables += Variable(torch.stack((totensor(test_sample[0]),))).cuda()
+				test_inputs_variables[-1] = Variable(torch.stack((totensor(test_sample[0]),1))).cuda()
 			else:
 				test_inputs_variables = Variable(torch.stack(train_inputs))
-				test_inputs_variables += Variable(torch.stack((totensor(test_sample[0]),)))
+				test_inputs_variables[-1] = Variable(torch.stack((totensor(test_sample[0]),1)))
 			argmax_arr = np.argmax(fast_net(test_inputs_variables).cpu().detach().numpy(), axis=1)
 			res.append(argmax_arr[-1])
 		num_correct += count_correct(res, test_labels)
