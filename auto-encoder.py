@@ -274,7 +274,7 @@ if __name__ == '__main__':
 		ae.cuda()
 	# define the loss (criterion) and create an optimizer
 	criterion = nn.MSELoss()
-	resume = True
+	resume = False
 	if resume:
 		epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
 		print(f"Model has been loaded epoch:{epoch}, path:{ae.path_to_save}")
