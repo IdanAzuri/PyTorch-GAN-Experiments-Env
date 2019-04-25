@@ -31,7 +31,7 @@ model:
     train_shot: 15
 train:
     use_augmentation: False
-    model_dir: "outputs/ae_denoising_3"
+    model_dir: "ae_denoising/model_3"
     shuffle: true
     add_noise: True
     noise_std: 0.5
