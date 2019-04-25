@@ -313,6 +313,7 @@ class OneShotAug():
 			self.tensorboard.scalar_summary(tag, value, step)
 	
 	def _test_predictions(self, fast_net, train_set, test_set):
+		totensor = ToTensor()
 		fast_net.eval()
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
@@ -328,12 +329,13 @@ class OneShotAug():
 		res = []
 		for test_sample in test_set:
 			train_inputs, train_labels = zip(*train_set)
+			train_inputs = pil_images_to_tensors(train_inputs)
 			if self.use_cuda:
 				test_inputs_variables = Variable(torch.stack(train_inputs)).cuda()
-				test_inputs_variables += Variable(torch.stack((test_sample[0],))).cuda()
+				test_inputs_variables += Variable(torch.stack((totensor(test_sample[0]),))).cuda()
 			else:
 				test_inputs_variables = Variable(torch.stack(train_inputs))
-				test_inputs_variables += Variable(torch.stack((test_sample[0],)))
+				test_inputs_variables += Variable(torch.stack((totensor(test_sample[0]),)))
 			argmax_arr = np.argmax(fast_net(test_inputs_variables).cpu().detach().numpy(), axis=1)
 			res.append(argmax_arr[-1])
 		num_correct += count_correct(res, test_labels)
@@ -379,7 +381,7 @@ def count_correct(pred, target):
 
 
 # Show Image
-def show_image(image, idx):
+def show_image(image, idx,prefix="ae"):
 	# Convert image to numpy
 	# image = image[0].cpu().detach().numpy()
 	
@@ -391,11 +393,11 @@ def show_image(image, idx):
 	image = (image * 255).astype(np.uint8)
 	plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
 	# plt.show()
-	plt.savefig(f"ae_{idx}.png")
+	plt.savefig(f"{prefix}_{idx}.png")
 	print("Saving imgs")
 
 
-def show_images(images, labels, idx):
+def show_images(images, labels, idx,prefix="ae"):
 	# Convert image to numpy
 	plt.clf()
 	rows = len(labels) // 5
@@ -408,10 +410,24 @@ def show_images(images, labels, idx):
 		image = to_img(images[i - 1])
 		image = (image * 255).astype(np.uint8)
 		plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
-	fig.savefig(f"ae_{idx}.png")
+	fig.savefig(f"{prefix}_{idx}.png")
 	print("Saving imgs")
 
-
+def show_images_no_labels(images, idx,prefix="ae"):
+	# Convert image to numpy
+	plt.clf()
+	rows = 2#len(images) // 5
+	columns = 5
+	fig = plt.figure(figsize=(10, 10))
+	for i in range(1, columns * rows + 1):
+		ax = fig.add_subplot(rows, columns, i)
+		ax.axis('off')
+		image = to_img(images[i - 1])
+		image = (image * 255).astype(np.uint8)
+		plt.imshow(np.transpose(np.squeeze(image), (1, 2, 0)), interpolation='nearest')
+	fig.savefig(f"{prefix}_{idx}.png")
+	print("Saving imgs")
+	
 def set_learning_rate(optimizer, lr):
 	for param_group in optimizer.param_groups:
 		param_group['lr'] = lr

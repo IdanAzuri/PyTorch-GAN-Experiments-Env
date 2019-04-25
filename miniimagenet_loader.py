@@ -258,7 +258,8 @@ class AutoEncoder(nn.Module):
 	def forward(self, x):
 		# print("Start Encode: ", x.shape)
 		x = self.encoder(x)
-		x= gaussian(x)
+		x+= gaussian(0.2*x[0],mean=0.1,stddev=0.1)
+		# x= gaussian(x,mean=0.5,stddev=0.3)
 		# print("Finished Encode: ", x.shape)
 		x = self.decoder(x)
 		# print("Finished Decode: ", x.shape)

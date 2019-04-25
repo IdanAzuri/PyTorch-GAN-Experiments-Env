@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from data_loader import *
 from miniimagenet_loader import AutoEncoder
-from one_shot_aug import show_image
+from one_shot_aug import show_images_no_labels
 
 
 batch_size = 64  # Number of samples in each batch
@@ -274,7 +274,7 @@ if __name__ == '__main__':
 		ae.cuda()
 	# define the loss (criterion) and create an optimizer
 	criterion = nn.MSELoss()
-	resume = False
+	resume = True
 	if resume:
 		epoch, ae = ae.load_saved_model(ae.path_to_save, ae)
 		print(f"Model has been loaded epoch:{epoch}, path:{ae.path_to_save}")
@@ -286,7 +286,8 @@ if __name__ == '__main__':
 				batch_img = batch_img.cuda()
 				batch_label = batch_label.cuda()
 			output = ae(batch_img)
-			show_image(output,batch_idx)
+			# show_images_no_labels(output,batch_idx,"awe")
+			# show_images_no_labels(batch_img,batch_idx,"original")
 			loss = criterion(output, batch_img)  # calculate the loss
 			if batch_idx % 50 == 0:
 				print(f'batch_idx:{batch_idx} loss: ', loss.data.item())
