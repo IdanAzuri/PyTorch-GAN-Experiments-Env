@@ -171,12 +171,13 @@ class GaussianNoise(nn.Module):
 		super().__init__()
 		self.sigma = sigma
 		self.is_relative_detach = is_relative_detach
-		self.noise = torch.Tensor(0)
+		# self.noise = torch.FloatTensor(0)
 	
 	def forward(self, x):
 		if self.training and self.sigma != 0:
 			scale = self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
-			sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
+			self.noise = torch.zeros(x.size())
+			sampled_noise = self.noise.normal_() * scale
 			x = x + sampled_noise
 		return x
 class DynamicGNoise(nn.Module):
@@ -201,7 +202,7 @@ def gaussian(ins, is_training=True, mean=0.0, stddev=0.1):
 class AutoEncoder(nn.Module):
 	def __init__(self):
 		super(AutoEncoder, self).__init__()
-		self.path_to_save = f"ae/model"
+		self.path_to_save = Config.model_dir
 		self.use_cuda = torch.cuda.is_available()
 		# conv layers: (in_channel size, out_channels size, kernel_size, stride, padding)
 		# self.n_filters = 32
@@ -258,8 +259,9 @@ class AutoEncoder(nn.Module):
 	def forward(self, x):
 		# print("Start Encode: ", x.shape)
 		x = self.encoder(x)
-		x+= gaussian(0.2*x[0],mean=0.1,stddev=0.1)
-		# x= gaussian(x,mean=0.5,stddev=0.3)
+		if Config.train.add_noise:
+			x= gaussian(x,mean=Config.train.noise_mean,stddev=Config.train.noise_std)
+		# x+= gaussian(0.2*x[0],mean=0.1,stddev=0.1)
 		# print("Finished Encode: ", x.shape)
 		x = self.decoder(x)
 		# print("Finished Decode: ", x.shape)
