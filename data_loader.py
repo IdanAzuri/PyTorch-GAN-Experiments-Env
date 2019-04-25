@@ -54,8 +54,8 @@ def get_loader(mode):
 	if config.model.dataset == "miniimagenet":
 		train_loader, valid_loader = read_dataset(Config.data.miniimagenet_path, transform_train, transform_test)  # transform_train(train_loader)
 	if config.model.dataset == "miniimagenet_all":
-		train_loader = datasets.ImageFolder(root=config.data.miniimagenet_path, transform=transform_train)
-		valid_loader = datasets.ImageFolder(root=config.data.miniimagenet_path, transform=transform_list_test)
+		train_loader = datasets.ImageFolder(root=config.data.miniimagenet_path_train, transform=transform_train)
+		valid_loader = datasets.ImageFolder(root=config.data.miniimagenet_path_valid, transform=transform_list_test)
 		# 	# test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
 		train_loader = DataLoader(dataset=train_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
