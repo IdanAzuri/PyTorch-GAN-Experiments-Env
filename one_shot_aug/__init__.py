@@ -85,10 +85,10 @@ class OneShotAug():
 			self.meta_net = MiniImageNetModel()
 			self.title = self.meta_net.title
 		# Find total parameters and trainable parameters
-		total_params = sum(p.numel() for p in self.meta_net.parameters())
-		print(f'{total_params:,} total parameters.')
-		total_trainable_params = sum(p.numel() for p in self.meta_net.parameters() if p.requires_grad)
-		print(f'{total_trainable_params:,} training parameters.')
+		# total_params = sum(p.numel() for p in self.meta_net.parameters())
+		# print(f'{total_params:,} total parameters.')
+		# total_trainable_params = sum(p.numel() for p in self.meta_net.parameters() if p.requires_grad)
+		# print(f'{total_trainable_params:,} training parameters.')
 		summary(self.meta_net.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
 		
 		self.learning_rate = Config.train.learning_rate
@@ -273,6 +273,7 @@ class OneShotAug():
 				inputs = Variable(torch.stack(inputs))
 				labels = Variable(torch.from_numpy(np.array(labels)))
 				if self.use_cuda:
+					fast_net.cuda()
 					inputs = inputs.cuda()
 					labels = labels.cuda()
 				# compute output
