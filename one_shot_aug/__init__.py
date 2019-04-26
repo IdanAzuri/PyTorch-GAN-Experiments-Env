@@ -83,7 +83,7 @@ class OneShotAug():
 			total_params = sum(p.numel() for p in self.meta_net.parameters())
 			print(f'{total_params:,} total parameters.')
 			total_trainable_params = sum(
-				p.numel() for p in model.parameters() if p.requires_grad)
+				p.numel() for p in self.meta_net.parameters() if p.requires_grad)
 			print(f'{total_trainable_params:,} training parameters.')
 
 		else:

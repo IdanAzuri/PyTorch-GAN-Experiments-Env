@@ -20,6 +20,8 @@ class PretrainedClassifier(nn.Module):
 		# model = models.__dict__[arch](pretrained=True)
 		if arch.startswith('densenet') or arch.startswith('inception'):
 			model_conv = models.__dict__[arch](pretrained=Config.model.pretrained)
+			for param in model_conv.parameters():
+				param.requires_grad = False
 			num_ftrs = model_conv.classifier.in_features
 			model_conv.classifier = nn.Linear(num_ftrs, Config.model.n_classes)
 			self.model = model_conv
@@ -29,6 +31,8 @@ class PretrainedClassifier(nn.Module):
 			num_ftrs = model_conv.classifier[6].in_features
 			# convert all the layers to list and remove the last one
 			features = list(model_conv.classifier.children())[:-1]
+			for param in model_conv.parameters():
+				param.requires_grad = False
 			## Add the last layer based on the num of classes in our dataset
 			features.extend([nn.Linear(num_ftrs, Config.model.n_classes)])
 			## convert it into container and add it to our model class.
@@ -38,6 +42,8 @@ class PretrainedClassifier(nn.Module):
 			self.model = model_conv
 		elif arch.startswith('resne'):
 			model = models.__dict__[arch](pretrained=Config.model.pretrained)
+			for param in model.parameters():
+				param.requires_grad = False
 			num_ftrs = model.fc.in_features
 			model.fc = nn.Linear(num_ftrs, Config.model.n_classes)
 			self.model = model
