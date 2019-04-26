@@ -333,7 +333,7 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 					if isinstance(policy,ImageNetPolicy):
 						cur_batch.append((totensor(policy(sample[0])).squeeze(), sample[1]))
 					else:
-						cur_batch.append((policy.encoder((img)).squeeze(), sample[1]))
+						cur_batch.append((policy(img).squeeze(), sample[1]))
 					
 			if len(cur_batch) < batch_size:
 				continue
