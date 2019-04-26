@@ -8,7 +8,7 @@ from hbconfig import Config
 from torch.autograd import Variable
 from torchvision import transforms
 from torchvision.transforms import ToTensor
-
+from torchsummary import summary
 import utils
 from AutoAugment.autoaugment import ImageNetPolicy
 from basic_utils import saving_config
