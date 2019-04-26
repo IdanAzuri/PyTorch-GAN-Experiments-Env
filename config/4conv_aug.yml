@@ -14,7 +14,7 @@ model:
     pretrained: False
     
     arch: small_cnn #resnet,densenet
-    transductive: False
+    transductive: True
     filters: 32
     conv1: 16
     conv2: 32

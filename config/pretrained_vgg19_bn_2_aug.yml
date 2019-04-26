@@ -15,7 +15,7 @@ model:
     
     arch: vgg19_bn
     filters: 64
-    transductive: False
+    transductive: True
     #    base_width: 4 #resnet params
     #    cardinality: 32 # resnet params
     #    depth: 29
