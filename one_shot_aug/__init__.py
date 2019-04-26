@@ -89,7 +89,7 @@ class OneShotAug():
 		# print(f'{total_params:,} total parameters.')
 		# total_trainable_params = sum(p.numel() for p in self.meta_net.parameters() if p.requires_grad)
 		# print(f'{total_trainable_params:,} training parameters.')
-		summary(self.meta_net.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
+		# summary(self.meta_net.cuda(), (Config.data.channels, Config.data.image_size, Config.data.image_size))
 		
 		self.learning_rate = Config.train.learning_rate
 		self.c_path = f"{Config.train.model_dir}_{self.seed}/log"
