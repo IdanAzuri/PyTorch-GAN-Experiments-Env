@@ -258,9 +258,9 @@ class AutoEncoder(nn.Module):
 	# 	summary(self, (Config.data.channels, Config.data.image_size, Config.data.image_size))
 	def forward(self, x):
 		# print("Start Encode: ", x.shape)
-		x = self.encoder(x)
 		if Config.train.add_noise:
 			x= gaussian(x,mean=Config.train.noise_mean,stddev=Config.train.noise_std)
+		x = self.encoder(x)
 		# x+= gaussian(0.2*x[0],mean=0.1,stddev=0.1)
 		# print("Finished Encode: ", x.shape)
 		x = self.decoder(x)
@@ -330,8 +330,11 @@ def _mini_batches_with_augmentation(samples, batch_size, num_batches, replacemen
 						img = torch.unsqueeze(totensor(sample[0]), 0).cuda()
 					else:
 						img = torch.unsqueeze(totensor(sample[0]), 0)
+					if isinstance(policy,ImageNetPolicy):
+						cur_batch.append((totensor(policy(sample[0])).squeeze(), sample[1]))
+					else:
+						cur_batch.append((policy(img).squeeze(), sample[1]))
 					
-					cur_batch.append((policy(img).squeeze(), sample[1]))
 			if len(cur_batch) < batch_size:
 				continue
 			yield cur_batch
