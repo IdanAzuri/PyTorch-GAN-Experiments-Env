@@ -36,7 +36,7 @@ train:
     add_noise: True
     noise_std: 0.5
     noise_mean: 0.15
-    learning_rate: 0.001
+    learning_rate: 0.0005
     meta_lr: 0.001
     optim_betas:
         - 0.5

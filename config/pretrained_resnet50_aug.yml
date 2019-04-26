@@ -33,7 +33,7 @@ train:
     add_noise: False
     noise_std: 0.0
     noise_mean: 0.0
-    learning_rate: 0.001  # 2e-4
+    learning_rate: 0.0005  # 2e-4
     optim_betas:
         - 0
         - 0.999
