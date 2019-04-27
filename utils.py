@@ -6,7 +6,7 @@ from io import BytesIO
 
 import numpy as np
 import scipy.misc
-import tensorflow as tf
+# import tensorflow as tf
 import torch
 from hbconfig import Config
 
@@ -232,7 +232,9 @@ def accuracy(output, target, topk=(1,)):
 
 def _conv_layer(n_input, n_output, k, stride=1, padding=1, bias=True):
 	"3x3 convolution with padding"
-	seq = nn.Sequential(nn.Conv2d(n_input, n_output, kernel_size=k, stride=stride, padding=padding, bias=bias), nn.BatchNorm2d(n_output), nn.LeakyReLU(True),
+	seq = nn.Sequential(nn.Conv2d(n_input, n_output, kernel_size=k, stride=stride, padding=padding, bias=bias),
+	                    nn.BatchNorm2d(n_output),
+	                    nn.LeakyReLU(True),
 	                    nn.MaxPool2d(kernel_size=2, stride=2, return_indices=False))
 	if Config.model.use_dropout:  # Add dropout module
 		list_seq = list(seq.modules())[1:]
@@ -243,7 +245,8 @@ def _conv_layer(n_input, n_output, k, stride=1, padding=1, bias=True):
 
 def _conv_transpose_layer(n_input, n_output, k, stride=1, padding=0, output_padding=0, bias=True):
 	"3x3 convolution with padding"
-	seq = nn.Sequential(nn.ConvTranspose2d(n_input, n_output, kernel_size=k, stride=stride, padding=padding, bias=bias, output_padding=output_padding), nn.BatchNorm2d(n_output),
+	seq = nn.Sequential(nn.ConvTranspose2d(n_input, n_output, kernel_size=k, stride=stride, padding=padding, bias=bias, output_padding=output_padding),
+	                    nn.BatchNorm2d(n_output),
 	                    nn.LeakyReLU(True))
 	if Config.model.use_dropout:  # Add dropout module
 		list_seq = list(seq.modules())[1:]
