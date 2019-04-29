@@ -60,7 +60,26 @@ def get_loader(mode):
 		train_loader = DataLoader(dataset=train_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 	# 	# test_loader = DataLoader(dataset=test_imagenet, batch_size=config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
+	if config.model.dataset == "miniimagenet_concat":
+		train_loader = torch.utils.data.DataLoader(
+			ConcatDataset(
+				datasets.ImageFolder(config.data.miniimagenet_path_train),
+				datasets.ImageFolder(config.data.miniimagenet_path_valid)
+				),
+			batch_size=config.train.batch_size, shuffle=True,
+			num_workers=config.data.num_workers, pin_memory=True)
+		return train_loader
 	return train_loader, valid_loader
+
+class ConcatDataset(torch.utils.data.Dataset):
+	def __init__(self, *datasets):
+		self.datasets = datasets
+	
+	def __getitem__(self, i):
+		return tuple(d[i] for d in self.datasets)
+	
+	def __len__(self):
+		return min(len(d) for d in self.datasets)
 
 
 """
