@@ -73,7 +73,7 @@ class PretrainedClassifier(nn.Module):
 		self.use_cuda = True if torch.cuda.is_available() else False
 		best_model = self.model
 		best_acc = 0.0
-		num_epochs = 30
+		num_epochs = Config.train.epochs
 		self.optimizer = get_optimizer(self.model)
 		criterion = nn.CrossEntropyLoss()
 
