@@ -24,7 +24,7 @@ model:
     conv4: 128
     use_dropout: False
     dropout: 0.3
-    dataset: miniimagenet
+    dataset: cifa10
     n_classes: 5 # number of data classes to sample.
     num_smaples_in_shot: 1 # number of examples per data class.
     train_shot: 15

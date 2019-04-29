@@ -1,3 +1,6 @@
+import copy
+import time
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,7 +9,9 @@ from hbconfig import Config
 from torch.autograd import Variable
 from torch.nn import init
 
+from data_loader import get_loader
 from utils import _conv_layer
+
 
 
 class PretrainedClassifier(nn.Module):
@@ -61,7 +66,116 @@ class PretrainedClassifier(nn.Module):
 		if use_cuda:
 			clone.cuda()
 		return clone
+	
+	def train_model(self):
+		since = time.time()
+	
+		self.use_cuda = True if torch.cuda.is_available() else False
+		best_model = self.model
+		best_acc = 0.0
+		num_epochs = 30
+		self.optimizer = get_optimizer(self.model)
+		criterion = nn.CrossEntropyLoss()
 
+		if self.use_cuda:
+			criterion.cuda()
+			
+		for epoch in range(num_epochs):
+			print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+			print('-' * 10)
+			
+			# Each epoch has a training and validation phase
+			for phase in ['train', 'val']:
+				if phase == 'train':
+					mode='train'
+					self.optimizer = self.exp_lr_scheduler(self.optimizer, epoch,init_lr=Config.train.learning_rate)
+					self.model.train()  # Set model to training mode
+				else:
+					self.model.eval()
+					mode='val'
+				
+				running_loss = 0.0
+				running_corrects = 0
+				train_dataset, valid_dataset = get_loader("train")
+				dset_loaders = {"train":train_dataset, "val":valid_dataset}
+				dset_sizes = {x: len(dset_loaders[x]) for x in ['train', 'val']}
+				counter=0
+				# Iterate over data.
+				for data in dset_loaders[phase]:
+					inputs, labels = data
+					print(inputs.size())
+					# wrap them in Variable
+					if self.use_cuda:
+						try:
+							inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
+						except:
+							print(inputs,labels)
+					else:
+						inputs, labels = Variable(inputs), Variable(labels)
+					
+					# Set gradient to zero to delete history of computations in previous epoch. Track operations so that differentiation can be done automatically.
+					self.optimizer.zero_grad()
+					outputs = self.model(inputs)
+					_, preds = torch.max(outputs.data, 1)
+					
+					loss = criterion(outputs, labels)
+					# print('loss done')
+					# Just so that you can keep track that something's happening and don't feel like the program isn't running.
+					# if counter%10==0:
+					#     print("Reached iteration ",counter)
+					counter+=1
+					
+					# backward + optimize only if in training phase
+					if phase == 'train':
+						# print('loss backward')
+						loss.backward()
+						# print('done loss backward')
+						self.optimizer.step()
+					# print('done optim')
+					# print evaluation statistics
+					try:
+						# running_loss += loss.data[0]
+						running_loss += loss.item()
+						# print(labels.data)
+						# print(preds)
+						running_corrects += torch.sum(preds == labels.data)
+					# print('running correct =',running_corrects)
+					except:
+						print('unexpected error, could not calculate loss or do a sum.')
+				print('trying epoch loss')
+				epoch_loss = running_loss / dset_sizes[phase]
+				epoch_acc = running_corrects.item() / float(dset_sizes[phase])
+				print('{} Loss: {:.4f} Acc: {:.4f}'.format(
+					phase, epoch_loss, epoch_acc))
+				
+				
+				# deep copy the model
+				if phase == 'val':
+					if epoch_acc > best_acc:
+						best_acc = epoch_acc
+						best_model = copy.deepcopy(self.model)
+						print('new best accuracy = ',best_acc)
+		time_elapsed = time.time() - since
+		print('Training complete in {:.0f}m {:.0f}s'.format(
+			time_elapsed // 60, time_elapsed % 60))
+		print('Best val Acc: {:4f}'.format(best_acc))
+		print('returning and looping back')
+		return best_model
+
+	# This function changes the learning rate over the training model.
+	@staticmethod
+	def exp_lr_scheduler(optimizer, epoch, init_lr=0.0001, lr_decay_epoch=100):
+		"""Decay learning rate by a factor of DECAY_WEIGHT every lr_decay_epoch epochs."""
+		lr = init_lr * (0.1**(epoch // lr_decay_epoch))
+		
+		if epoch % lr_decay_epoch == 0:
+			print('LR is set to {}'.format(lr))
+		
+		for param_group in optimizer.param_groups:
+			param_group['lr'] = lr
+		
+		return optimizer
+	
 
 class MiniImageNetModel(nn.Module):
 	"""
@@ -128,3 +242,9 @@ class MiniImageNetModel(nn.Module):
 		if use_cuda:
 			clone.cuda()
 		return clone
+
+def get_optimizer(net, state=None):
+	optimizer = torch.optim.Adam(net.parameters(), lr=Config.train.learning_rate, betas=(Config.train.optim_betas))
+	if state is not None:
+		optimizer.load_state_dict(state)
+	return optimizer

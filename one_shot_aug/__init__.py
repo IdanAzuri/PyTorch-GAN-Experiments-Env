@@ -1,4 +1,5 @@
 import os
+import random
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
@@ -269,7 +270,7 @@ class OneShotAug():
 			try:
 				inputs, labels = zip(*batch)
 				# if batch_idx % 2 == 0:
-				# show_images(inputs, labels, batch_idx)
+					# show_images(inputs, labels, batch_idx)
 				inputs = Variable(torch.stack(inputs))
 				labels = Variable(torch.from_numpy(np.array(labels)))
 				if self.use_cuda:
@@ -328,7 +329,7 @@ class OneShotAug():
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
 		test_inputs_tensors = pil_images_to_tensors(test_inputs)
-		# show_images(test_inputs_tensors, test_labels, 1)
+		show_images_no_labels(test_inputs_tensors, random.randint(0,200),"test")
 		if self._transductive:
 			if self.use_cuda:
 				test_inputs_variables = Variable(torch.stack(test_inputs_tensors)).cuda()
@@ -426,7 +427,7 @@ def show_images(images, labels, idx,prefix="ae"):
 def show_images_no_labels(images, idx,prefix="ae"):
 	# Convert image to numpy
 	plt.clf()
-	rows = 2#len(images) // 5
+	rows = len(images) // 5
 	columns = 5
 	fig = plt.figure(figsize=(10, 10))
 	for i in range(1, columns * rows + 1):
