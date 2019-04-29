@@ -24,7 +24,7 @@ model:
     n_classes: 64
 train:
     batch_size: 16
-    use_augmentation: False
+    use_augmentation: True
     model_dir: "outputs/train_vgg16"
     shuffle: true
     epochs: 30
@@ -34,9 +34,9 @@ train:
         - 0.5
         - 0.999
 eval:
-    use_augmentation: False
+    use_augmentation: True
 predict:
-    use_augmentation: False
+    use_augmentation: True
     num_sample_augmentation: 5
 slack:
     webhook_url: ""  # after training notify you using slack-webhook
