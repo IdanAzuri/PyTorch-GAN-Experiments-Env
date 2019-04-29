@@ -1,0 +1,57 @@
+data:
+    path: "data/"
+    mnist_path: "data/mnist"
+    svhn_path: "data/svhn"
+    cifar10_path: "data/cifar10"
+    miniimagenet_path: "data/miniimagenet"
+    image_size: 224
+    num_workers: 6
+    channels: 3
+
+model:
+    name: "OneShotAug"
+    type: "known_net"
+    pretrained: False
+    
+    arch: resnet50 #i.e. resnet,densenet
+    transductive: True
+    use_dropout: False
+    dropout: 0.3
+    use_augmentation: True
+    dataset: miniimagenet
+    #    total_train_classes: 65 #miniimagenet
+    #    total_valid_classes: 20 #miniimagenet
+    #    total_test_classes: 15 #miniimagenet
+    n_classes: 5 # number of data classes to sample.
+    num_smaples_in_shot: 1 # number of examples per data class.
+    train_shot: 15
+train:
+    model_dir: "outputs/resnet_50_aug"
+    batch_size: 64
+    shuffle: true
+    
+    learning_rate: 0.0005
+    meta_lr: 0.001
+    optim_betas:
+        - 0
+        - 0.999
+    add_noise: False
+    noise_std: 0.0
+    noise_mean: 0.0
+    save_checkpoints_steps: 1000
+    verbose_step_count: 50
+    show_progrees_bar: False
+    inner_batch_size: 10 # batch size for every inner-loop training iteration.
+    inner_iters: 20 #n umber of inner-loop iterations.
+    replacement: False # sample with replacement.
+    meta_batch_size: 5 # how many inner-loops to run
+    meta_iters: 100000 # epochs
+eval:
+    eval_inner_iters: 50
+    inner_batch_size: 5 # batch size for every inner-loop training iteration.
+predict:
+    batch_size: 32
+    use_augmentation: True
+slack:
+    webhook_url: ""  # after training notify you using slack-webhook
+    

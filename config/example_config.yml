@@ -31,14 +31,14 @@ train:
   d_learning_rate: 0.0002  # 2e-4
   g_learning_rate: 0.0002
   optim_betas:
-    - 0.5
+    - 0.
     - 0.999
 
   save_checkpoints_steps: 1000
   verbose_step_count: 100
-
+  use_augmentation: False
 predict:
   batch_size: 64
-
+  
 slack:
   webhook_url: ""  # after training notify you using slack-webhook

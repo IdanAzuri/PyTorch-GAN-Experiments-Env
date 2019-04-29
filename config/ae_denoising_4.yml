@@ -1,0 +1,62 @@
+data:
+    path: "data/"
+    mnist_path: "data/mnist"
+    svhn_path: "data/svhn"
+    cifar10_path: "data/cifar10"
+    miniimagenet_path_train: "data/miniimagenet/train"
+    miniimagenet_path_valid: "data/miniimagenet/val"
+    image_size: 224
+    num_workers: 1
+    channels: 3
+
+model:
+    name: "OneShotAug"
+    type: "conv"
+    pretrained: False
+    
+    arch: small_cnn #resnet,densenet
+    transductive: True
+    z_dim: 100  # Random noise dimension coming into generator, per output vector
+    real_dim: 1024  #$image_size * image_size
+    filters: 32
+    conv1: 16
+    conv2: 32
+    conv3: 64
+    conv4: 128
+    use_dropout: True
+    dropout: 0.3
+    dataset: miniimagenet_all
+    n_classes: 5 # number of data classes to sample.
+    num_smaples_in_shot: 1 # number of examples per data class.
+    train_shot: 15
+train:
+    use_augmentation: False
+    model_dir: "ae_denoising/model_4"
+    shuffle: true
+    add_noise: True
+    noise_std: 0.15
+    noise_mean: 0.0
+    learning_rate: 0.0005
+    meta_lr: 0.001
+    optim_betas:
+        - 0.5
+        - 0.999
+    
+    save_checkpoints_steps: 1000
+    verbose_step_count: 50
+    inner_batch_size: 10 # batch size for every inner-loop training iteration.
+    inner_iters: 8 #n umber of inner-loop iterations.
+    replacement: False # sample with replacement.
+    meta_batch_size: 5 # how many inner-loops to run
+    meta_iters: 100000 # epochs
+    batch_size: 64
+eval:
+    eval_inner_iters: 50
+    inner_batch_size: 5 # batch size for every inner-loop training iteration.
+    use_augmentation: False
+predict:
+    use_augmentation: False
+    num_sample_augmentation: 5
+slack:
+    webhook_url: ""  # after training notify you using slack-webhook
+    
