@@ -23,7 +23,7 @@ model:
     dataset: miniimagenet_concat
     n_classes: 64
 train:
-    batch_size: 16
+    batch_size: 64
     use_augmentation: True
     model_dir: "outputs/train_vgg16"
     shuffle: true
