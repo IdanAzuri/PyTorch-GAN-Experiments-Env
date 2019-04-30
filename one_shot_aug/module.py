@@ -21,7 +21,7 @@ class PretrainedClassifier(nn.Module):
 		super().__init__()
 		arch = Config.model.arch
 		self.arch = arch
-		self.path_to_save = f"train_{arch}/model"
+		self.path_to_save = f"train_{Config.train.model_dir}/model"
 		print("=> creating model '{}'".format(arch))
 		print("=> using pre-trained model '{}'".format(arch))
 		# model = models.__dict__[arch](pretrained=True)
@@ -214,7 +214,7 @@ class PretrainedClassifier(nn.Module):
 		for i in range(len(sorted_path) - max_to_keep):
 			os.remove(sorted_path[i])
 		
-		full_path = os.path.join(self.path_to_save, f"ae_{step}.pkl")
+		full_path = os.path.join(self.path_to_save, f"classifier_{step}.pkl")
 		torch.save({"step_count": step, 'net': self.state_dict(), 'optimizer': self.optimizer.state_dict(), }, full_path)
 
 
