@@ -68,8 +68,8 @@ def get_loader(mode):
 		valid_loader = torch.utils.data.DataLoader(valid_, batch_size=config.train.batch_size, shuffle=True, num_workers=config.data.num_workers, pin_memory=True)
 	
 	if config.model.dataset == "imagenet":
-		train_loader = datasets.ImageFolder(root=config.data.imagenet_train, transform=transform_train)
-		valid_loader = datasets.ImageFolder(root=config.data.imagenet_val, transform=transform_list_test)
+		train_loader = datasets.ImageFolder(root=config.data.imagenet_path_train, transform=transform_train)
+		valid_loader = datasets.ImageFolder(root=config.data.imagenet_path_val, transform=transform_list_test)
 		# 	# test_imagenet = datasets.ImageFolder(root=config.data.miniimagenet_path_test)
 		train_loader = DataLoader(dataset=train_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
 		valid_loader = DataLoader(dataset=valid_loader, batch_size=Config.train.batch_size, shuffle=config.train.shuffle, num_workers=config.data.num_workers)
