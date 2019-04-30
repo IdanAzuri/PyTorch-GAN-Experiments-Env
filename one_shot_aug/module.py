@@ -71,20 +71,21 @@ class PretrainedClassifier(nn.Module):
 	
 	def train_model(self):
 		since = time.time()
-	
+		
 		self.use_cuda = True if torch.cuda.is_available() else False
 		best_model = self.model
 		best_acc = 0.0
 		num_epochs = Config.train.epochs
 		self.optimizer = get_optimizer(self.model)
 		criterion = nn.CrossEntropyLoss()
-
+		
 		if self.use_cuda:
 			criterion.cuda()
 		resume = True
 		if resume:
 			epoch, classifier = self.load_saved_model(self.path_to_save, self.model)
-			print(f"Model has been loaded epoch:{epoch}, path:{classifier.path_to_save}")
+			self.model = classifier
+			print(f"Model has been loaded epoch:{epoch}, path:{self.path_to_save}")
 		else:
 			epoch = 0
 		for epoch in range(num_epochs):
@@ -94,19 +95,19 @@ class PretrainedClassifier(nn.Module):
 			# Each epoch has a training and validation phase
 			for phase in ['train', 'val']:
 				if phase == 'train':
-					mode='train'
-					self.optimizer = self.exp_lr_scheduler(self.optimizer, epoch,init_lr=Config.train.learning_rate)
+					mode = 'train'
+					self.optimizer = self.exp_lr_scheduler(self.optimizer, epoch, init_lr=Config.train.learning_rate)
 					self.model.train()  # Set model to training mode
 				else:
 					self.model.eval()
-					mode='val'
+					mode = 'val'
 				
 				running_loss = 0.0
 				running_corrects = 0
 				train_dataset, valid_dataset = get_loader("train")
-				dset_loaders = {"train":train_dataset, "val":valid_dataset}
+				dset_loaders = {"train": train_dataset, "val": valid_dataset}
 				dset_sizes = {x: len(dset_loaders[x]) for x in ['train', 'val']}
-				counter=0
+				counter = 0
 				# Iterate over data.
 				for data in dset_loaders[phase]:
 					inputs, labels = data
@@ -117,7 +118,7 @@ class PretrainedClassifier(nn.Module):
 							inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
 							self.model.cuda()
 						except:
-							print(inputs,labels)
+							print(inputs, labels)
 					else:
 						inputs, labels = Variable(inputs), Variable(labels)
 					
@@ -131,7 +132,7 @@ class PretrainedClassifier(nn.Module):
 					# Just so that you can keep track that something's happening and don't feel like the program isn't running.
 					# if counter%10==0:
 					#     print("Reached iteration ",counter)
-					counter+=1
+					counter += 1
 					
 					# backward + optimize only if in training phase
 					if phase == 'train':
@@ -153,30 +154,27 @@ class PretrainedClassifier(nn.Module):
 				print('trying epoch loss')
 				epoch_loss = running_loss / dset_sizes[phase]
 				epoch_acc = running_corrects.item() / float(dset_sizes[phase])
-				print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-					phase, epoch_loss, epoch_acc))
-				
+				print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
 				
 				# deep copy the model
 				if phase == 'val':
 					if epoch_acc > best_acc:
 						best_acc = epoch_acc
 						best_model = copy.deepcopy(self.model)
-						print('new best accuracy = ',best_acc)
+						print('new best accuracy = ', best_acc)
 			self.save_checkpoint(f"train_{epoch}")  # show()
 			print(f"Saved in {self.path_to_save}")
 		time_elapsed = time.time() - since
-		print('Training complete in {:.0f}m {:.0f}s'.format(
-			time_elapsed // 60, time_elapsed % 60))
+		print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
 		print('Best val Acc: {:4f}'.format(best_acc))
 		print('returning and looping back')
 		return best_model
-
+	
 	# This function changes the learning rate over the training model.
 	@staticmethod
 	def exp_lr_scheduler(optimizer, epoch, init_lr=0.0001, lr_decay_epoch=100):
 		"""Decay learning rate by a factor of DECAY_WEIGHT every lr_decay_epoch epochs."""
-		lr = init_lr * (0.1**(epoch // lr_decay_epoch))
+		lr = init_lr * (0.1 ** (epoch // lr_decay_epoch))
 		
 		if epoch % lr_decay_epoch == 0:
 			print('LR is set to {}'.format(lr))
@@ -211,7 +209,6 @@ class PretrainedClassifier(nn.Module):
 		print(f"Load checkpoints...! {latest_path}")
 		return step_count, model
 	
-	
 	def save_checkpoint(self, step, max_to_keep=3):
 		sorted_path = get_sorted_path(self.path_to_save)
 		for i in range(len(sorted_path) - max_to_keep):
@@ -219,6 +216,7 @@ class PretrainedClassifier(nn.Module):
 		
 		full_path = os.path.join(self.path_to_save, f"ae_{step}.pkl")
 		torch.save({"step_count": step, 'net': self.state_dict(), 'optimizer': self.optimizer.state_dict(), }, full_path)
+
 
 class MiniImageNetModel(nn.Module):
 	"""
@@ -285,6 +283,7 @@ class MiniImageNetModel(nn.Module):
 		if use_cuda:
 			clone.cuda()
 		return clone
+
 
 def get_optimizer(net, state=None):
 	optimizer = torch.optim.Adam(net.parameters(), lr=Config.train.learning_rate, betas=(Config.train.optim_betas))
