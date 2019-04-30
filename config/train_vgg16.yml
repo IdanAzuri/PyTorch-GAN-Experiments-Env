@@ -6,6 +6,8 @@ data:
     miniimagenet_path: "data/miniimagenet"
     miniimagenet_path_train: "data/miniimagenet/train"
     miniimagenet_path_valid: "data/miniimagenet/val"
+    imagenet_path_train: "/mnt/local/guy.hacohen/train_idan"
+    imagenet_path_val: "/mnt/local/guy.hacohen/val_idan"
     image_size: 224
     num_workers: 6
     channels: 3

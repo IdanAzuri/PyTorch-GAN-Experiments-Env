@@ -1,5 +1,7 @@
 import copy
+import os
 import time
+from collections import OrderedDict
 
 import numpy as np
 import torch
@@ -10,8 +12,7 @@ from torch.autograd import Variable
 from torch.nn import init
 
 from data_loader import get_loader
-from utils import _conv_layer
-
+from utils import _conv_layer, find_latest, get_sorted_path
 
 
 class PretrainedClassifier(nn.Module):
@@ -20,6 +21,7 @@ class PretrainedClassifier(nn.Module):
 		super().__init__()
 		arch = Config.model.arch
 		self.arch = arch
+		self.path_to_save = f"train_{arch}/model"
 		print("=> creating model '{}'".format(arch))
 		print("=> using pre-trained model '{}'".format(arch))
 		# model = models.__dict__[arch](pretrained=True)
@@ -79,7 +81,12 @@ class PretrainedClassifier(nn.Module):
 
 		if self.use_cuda:
 			criterion.cuda()
-			
+		resume = True
+		if resume:
+			epoch, classifier = self.load_saved_model(self.path_to_save, self.model)
+			print(f"Model has been loaded epoch:{epoch}, path:{classifier.path_to_save}")
+		else:
+			epoch = 0
 		for epoch in range(num_epochs):
 			print('Epoch {}/{}'.format(epoch, num_epochs - 1))
 			print('-' * 10)
@@ -156,6 +163,8 @@ class PretrainedClassifier(nn.Module):
 						best_acc = epoch_acc
 						best_model = copy.deepcopy(self.model)
 						print('new best accuracy = ',best_acc)
+			self.save_checkpoint(f"train_{epoch}")  # show()
+			print(f"Saved in {self.path_to_save}")
 		time_elapsed = time.time() - since
 		print('Training complete in {:.0f}m {:.0f}s'.format(
 			time_elapsed // 60, time_elapsed % 60))
@@ -177,6 +186,39 @@ class PretrainedClassifier(nn.Module):
 		
 		return optimizer
 	
+	def load_saved_model(self, path, model):
+		latest_path = find_latest(path + "/")
+		if latest_path is None:
+			return 0, model
+		
+		checkpoint = torch.load(latest_path)
+		
+		step_count = checkpoint['step_count']
+		state_dict = checkpoint['net']
+		# if dataparallel
+		# if "module" in list(state_dict.keys())[0]:
+		try:
+			new_state_dict = OrderedDict()
+			for k, v in state_dict.items():
+				name = k[7:]  # remove 'module.' of dataparallel
+				new_state_dict[name] = v
+			
+			model.load_state_dict(new_state_dict)
+		except:
+			# else:
+			model.load_state_dict(checkpoint['net'])
+		
+		print(f"Load checkpoints...! {latest_path}")
+		return step_count, model
+	
+	
+	def save_checkpoint(self, step, max_to_keep=3):
+		sorted_path = get_sorted_path(self.path_to_save)
+		for i in range(len(sorted_path) - max_to_keep):
+			os.remove(sorted_path[i])
+		
+		full_path = os.path.join(self.path_to_save, f"ae_{step}.pkl")
+		torch.save({"step_count": step, 'net': self.state_dict(), 'optimizer': self.optimizer.state_dict(), }, full_path)
 
 class MiniImageNetModel(nn.Module):
 	"""
