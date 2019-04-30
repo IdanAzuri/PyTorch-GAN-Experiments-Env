@@ -108,6 +108,7 @@ class PretrainedClassifier(nn.Module):
 					if self.use_cuda:
 						try:
 							inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
+							self.model.cuda()
 						except:
 							print(inputs,labels)
 					else:
