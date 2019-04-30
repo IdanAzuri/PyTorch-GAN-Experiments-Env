@@ -103,7 +103,7 @@ class PretrainedClassifier(nn.Module):
 				# Iterate over data.
 				for data in dset_loaders[phase]:
 					inputs, labels = data
-					print(inputs.size())
+					# print(inputs.size())
 					# wrap them in Variable
 					if self.use_cuda:
 						try:
