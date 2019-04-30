@@ -21,7 +21,7 @@ class PretrainedClassifier(nn.Module):
 		super().__init__()
 		arch = Config.model.arch
 		self.arch = arch
-		self.path_to_save = f"train_{Config.train.model_dir}/model"
+		self.path_to_save = f"{Config.train.model_dir}/model"
 		print("=> creating model '{}'".format(arch))
 		print("=> using pre-trained model '{}'".format(arch))
 		# model = models.__dict__[arch](pretrained=True)
