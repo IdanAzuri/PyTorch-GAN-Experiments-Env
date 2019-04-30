@@ -24,6 +24,8 @@ model:
     dropout: 0.3
     dataset: miniimagenet_concat
     n_classes: 64
+    num_smaples_in_shot: 1 # number of examples per data class.
+    train_shot: 15
 train:
     batch_size: 64
     use_augmentation: True
@@ -35,6 +37,7 @@ train:
     optim_betas:
         - 0.5
         - 0.999
+    train_shot: 5
 eval:
     use_augmentation: True
 predict:
