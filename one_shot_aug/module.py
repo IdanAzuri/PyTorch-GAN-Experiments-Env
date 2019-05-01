@@ -112,7 +112,7 @@ class PretrainedClassifier(nn.Module):
 				for data in dset_loaders[phase]:
 					inputs, labels = data
 					# print(inputs.size())
-					print(labels)
+					# print(labels)
 					# wrap them in Variable
 					if self.use_cuda:
 						try:
@@ -163,7 +163,7 @@ class PretrainedClassifier(nn.Module):
 						best_acc = epoch_acc
 						best_model = copy.deepcopy(self.model)
 						print('new best accuracy = ', best_acc)
-			self.save_checkpoint(f"train_{epoch}")  # show()
+			self.save_checkpoint(f"train_{epoch}")
 			print(f"Saved in {self.path_to_save}")
 		time_elapsed = time.time() - since
 		print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
