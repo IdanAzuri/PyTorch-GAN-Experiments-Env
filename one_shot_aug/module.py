@@ -197,15 +197,15 @@ class PretrainedClassifier(nn.Module):
 		# if dataparallel
 		# if "module" in list(state_dict.keys())[0]:
 		try:
+			model.load_state_dict(checkpoint['net'])
+		except:
 			new_state_dict = OrderedDict()
 			for k, v in state_dict.items():
 				name = k[7:]  # remove 'module.' of dataparallel
 				new_state_dict[name] = v
 			
 			model.load_state_dict(new_state_dict)
-		except:
 			# else:
-			model.load_state_dict(checkpoint['net'])
 		
 		print(f"Load checkpoints...! {latest_path}")
 		return step_count, model
