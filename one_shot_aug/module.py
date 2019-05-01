@@ -201,7 +201,7 @@ class PretrainedClassifier(nn.Module):
 		except:
 			new_state_dict = OrderedDict()
 			for k, v in state_dict.items():
-				name = k[7:]  # remove 'module.' of dataparallel
+				name = k[6:]  # remove 'module.' of dataparallel
 				new_state_dict[name] = v
 			
 			model.load_state_dict(new_state_dict)
