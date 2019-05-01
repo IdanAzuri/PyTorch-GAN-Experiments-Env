@@ -17,7 +17,7 @@ model:
     type: "known_net"
     pretrained: False
 
-    arch: vgg16
+    arch: resnet50
     
     transductive: True
     use_dropout: False
@@ -29,7 +29,7 @@ model:
 train:
     batch_size: 64
     use_augmentation: True
-    model_dir: "train_imagenet_vgg16"
+    model_dir: "train_imagenet_resnet50"
     shuffle: true
     epochs: 30
     learning_rate: 0.0005

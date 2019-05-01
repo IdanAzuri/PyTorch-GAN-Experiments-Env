@@ -17,7 +17,7 @@ model:
     type: "known_net"
     pretrained: False
 
-    arch: vgg19_bn
+    arch: vgg16
     
     transductive: True
     use_dropout: False
