@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from torch.nn import init
 
 from data_loader import get_loader
-from utils import _conv_layer, find_latest, get_sorted_path
+from utils import _conv_layer, find_latest, get_sorted_path, mkdir_p
 
 
 class PretrainedClassifier(nn.Module):
@@ -78,7 +78,7 @@ class PretrainedClassifier(nn.Module):
 		num_epochs = Config.train.epochs
 		self.optimizer = get_optimizer(self.model)
 		criterion = nn.CrossEntropyLoss()
-		
+		mkdir_p(self.path_to_save)
 		if self.use_cuda:
 			criterion.cuda()
 		resume = True
