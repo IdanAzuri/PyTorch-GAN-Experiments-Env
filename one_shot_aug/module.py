@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from torch.nn import init
 
 from data_loader import get_loader
-from utils import _conv_layer, find_latest, get_sorted_path
+from utils import _conv_layer, find_latest, get_sorted_path, mkdir_p
 
 
 class PretrainedClassifier(nn.Module):
@@ -78,7 +78,7 @@ class PretrainedClassifier(nn.Module):
 		num_epochs = Config.train.epochs
 		self.optimizer = get_optimizer(self.model)
 		criterion = nn.CrossEntropyLoss()
-		
+		mkdir_p(self.path_to_save)
 		if self.use_cuda:
 			criterion.cuda()
 		resume = True
@@ -197,15 +197,15 @@ class PretrainedClassifier(nn.Module):
 		# if dataparallel
 		# if "module" in list(state_dict.keys())[0]:
 		try:
+			model.load_state_dict(checkpoint['net'])
+		except:
 			new_state_dict = OrderedDict()
 			for k, v in state_dict.items():
 				name = k[7:]  # remove 'module.' of dataparallel
 				new_state_dict[name] = v
 			
 			model.load_state_dict(new_state_dict)
-		except:
 			# else:
-			model.load_state_dict(checkpoint['net'])
 		
 		print(f"Load checkpoints...! {latest_path}")
 		return step_count, model
