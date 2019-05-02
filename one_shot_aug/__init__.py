@@ -330,7 +330,7 @@ class OneShotAug():
 		num_correct = 0
 		test_inputs, test_labels = zip(*test_set)
 		test_inputs_tensors = pil_images_to_tensors(test_inputs)
-		show_images_no_labels(test_inputs_tensors, random.randint(0,200),"test")
+		# show_images_no_labels(test_inputs_tensors, random.randint(0,200),"test")
 		if self._transductive:
 			if self.use_cuda:
 				test_inputs_variables = Variable(torch.stack(test_inputs_tensors)).cuda()
