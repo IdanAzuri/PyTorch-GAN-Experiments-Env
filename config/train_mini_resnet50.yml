@@ -23,7 +23,7 @@ model:
     use_dropout: False
     dropout: 0.3
     dataset: miniimagenet_concat
-    n_classes: 64
+    n_classes: 80
     num_smaples_in_shot: 1 # number of examples per data class.
     train_shot: 15
 train:

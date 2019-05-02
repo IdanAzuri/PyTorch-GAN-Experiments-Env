@@ -35,25 +35,29 @@ class PretrainedClassifier(nn.Module):
 		elif arch.startswith('vgg'):
 			# model_conv = models.__dict__[arch](pretrained=Config.model.pretrained)
 			model_conv = models.__dict__[arch](False)
-			epoch, classifier = self.load_saved_model(self.path_to_save, model_conv)
-			self.model = classifier
-			print(f"{arch} has been loaded epoch:{epoch}, path:{self.path_to_save}")
-			# Number of filters in the bottleneck layer
 			num_ftrs = model_conv.classifier[6].in_features
-			# convert all the layers to list and remove the last one
 			features = list(model_conv.classifier.children())[:-1]
 			for param in model_conv.parameters():
 				param.requires_grad = False
-			## Add the last layer based on the num of classes in our dataset
-			features.extend([nn.Linear(num_ftrs, Config.model.n_classes)])
-			## convert it into container and add it to our model class.
+			features.extend([nn.Linear(num_ftrs, 64)])
 			model_conv.classifier = nn.Sequential(*features)
+			epoch, classifier = self.load_saved_model("train_mini_vgg16", model_conv)
+			self.model = classifier
+			print(f"{arch} has been loaded epoch:{epoch}, path:{self.path_to_save}")
+			num_ftrs = model_conv.classifier[6].in_features
+			features = list(model_conv.classifier.children())[:-1]
+			for param in model_conv.parameters():
+				param.requires_grad = False
+			features.extend([nn.Linear(num_ftrs, Config.model.n_classes)])
+			model_conv.classifier = nn.Sequential(*features)
+			
 			model_conv.num_classes = Config.model.n_classes
 			
 			self.model = model_conv
 		elif arch.startswith('resne'):
 			# model = models.__dict__[arch](pretrained=Config.model.pretrained)
-			epoch, classifier = self.load_saved_model(self.path_to_save, self.model)
+			model = models.__dict__[arch](pretrained=False)
+			epoch, classifier = self.load_saved_model("train_mini_resnet50", self.model)
 			model = classifier
 			print(f"Model has been loaded epoch:{epoch}, path:{self.path_to_save}")
 			for param in model.parameters():
@@ -195,6 +199,7 @@ class PretrainedClassifier(nn.Module):
 	def load_saved_model(self, path, model):
 		latest_path = find_latest(path + "/")
 		if latest_path is None:
+			print(latest_path)
 			return 0, model
 		
 		checkpoint = torch.load(latest_path)
