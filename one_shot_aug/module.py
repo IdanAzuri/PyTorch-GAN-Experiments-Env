@@ -33,7 +33,11 @@ class PretrainedClassifier(nn.Module):
 			model_conv.classifier = nn.Linear(num_ftrs, Config.model.n_classes)
 			self.model = model_conv
 		elif arch.startswith('vgg'):
-			model_conv = models.__dict__[arch](pretrained=Config.model.pretrained)
+			# model_conv = models.__dict__[arch](pretrained=Config.model.pretrained)
+			model_conv = models.__dict__[arch](False)
+			epoch, classifier = self.load_saved_model(self.path_to_save, model_conv)
+			self.model = classifier
+			print(f"Model has been loaded epoch:{epoch}, path:{self.path_to_save}")
 			# Number of filters in the bottleneck layer
 			num_ftrs = model_conv.classifier[6].in_features
 			# convert all the layers to list and remove the last one
@@ -48,7 +52,10 @@ class PretrainedClassifier(nn.Module):
 			
 			self.model = model_conv
 		elif arch.startswith('resne'):
-			model = models.__dict__[arch](pretrained=Config.model.pretrained)
+			# model = models.__dict__[arch](pretrained=Config.model.pretrained)
+			epoch, classifier = self.load_saved_model(self.path_to_save, self.model)
+			model = classifier
+			print(f"Model has been loaded epoch:{epoch}, path:{self.path_to_save}")
 			for param in model.parameters():
 				param.requires_grad = False
 			num_ftrs = model.fc.in_features
