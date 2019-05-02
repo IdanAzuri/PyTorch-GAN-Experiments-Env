@@ -13,7 +13,7 @@ model:
     type: "known_net"
     pretrained: True
     
-    arch: vgg19_bn
+    arch: vgg16
     filters: 64
     transductive: True
     #    base_width: 4 #resnet params
