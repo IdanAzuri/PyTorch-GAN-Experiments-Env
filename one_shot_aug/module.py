@@ -37,7 +37,7 @@ class PretrainedClassifier(nn.Module):
 			model_conv = models.__dict__[arch](False)
 			epoch, classifier = self.load_saved_model(self.path_to_save, model_conv)
 			self.model = classifier
-			print(f"Model has been loaded epoch:{epoch}, path:{self.path_to_save}")
+			print(f"{arch} has been loaded epoch:{epoch}, path:{self.path_to_save}")
 			# Number of filters in the bottleneck layer
 			num_ftrs = model_conv.classifier[6].in_features
 			# convert all the layers to list and remove the last one
