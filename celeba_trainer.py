@@ -38,7 +38,7 @@ class FaceLandmarksDataset(Dataset):
 		identities_train = identities.loc[identities['id'] <= 2400]
 		identities_test = identities.loc[(identities['id'] > 2400) & (identities['id'] < 4401)]
 		identities_test = identities_test.groupby('id').first()
-		self.identities = pd.concat(identities_train , identities_test)
+		self.identities = pd.concat([identities_train , identities_test])
 		# self.identities = pd.read_csv(csv_file)
 		self.root_dir = root_dir
 		self.transform = transform
