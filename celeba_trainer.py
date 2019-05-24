@@ -47,9 +47,9 @@ class FaceLandmarksDataset(Dataset):
 		return len(self.identities)
 	
 	def __getitem__(self , idx):
-		img_name = os.path.join(self.root_dir , self.identities.iloc[idx , "fname"])
+		img_name = os.path.join(self.root_dir , self.identities.loc[idx , "fname"])
 		image = io.imread(img_name)
-		identities = self.identities.iloc[idx , "id"].as_matrix()
+		identities = self.identities.loc[idx , "id"].as_matrix()
 		identities = identities.astype('int')
 		sample = {'image': image , 'identities': identities}
 		
