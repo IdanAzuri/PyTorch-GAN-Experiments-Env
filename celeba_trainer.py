@@ -42,6 +42,7 @@ class FaceLandmarksDataset(Dataset):
 			transform (callable, optional): Optional transform to be applied
 				on a sample.
 		"""
+		self.root_dir=root_dir
 		identities = pd.read_csv(self.root_dir , " " , header=None)
 		identities.columns = ["fname" , "id"]
 		identities.sort_values(by=["id"] , inplace=True)
