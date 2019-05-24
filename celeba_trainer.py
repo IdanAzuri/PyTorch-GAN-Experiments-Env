@@ -32,7 +32,7 @@ class FaceLandmarksDataset(Dataset):
 				on a sample.
 		"""
 		self.root_dir=root_dir
-		identities = pd.read_csv(self.root_dir , " " , header=None,engine='python')
+		identities = pd.read_csv(csv_file , " " , header=None,engine='python')
 		identities.columns = ["fname" , "id"]
 		identities.sort_values(by=["id"] , inplace=True)
 		identities_train = identities.loc[identities['id'] <= 2400]
