@@ -11,24 +11,13 @@ from torchvision import transforms
 
 
 lr = 0.0002
-max_epoch = 8
-batch_size = 32
-z_dim = 100
+max_epoch = 10000
+batch_size = 64
 image_size = 64
-g_conv_dim = 64
-d_conv_dim = 64
 log_step = 100
-sample_step = 500
-sample_num = 32
 IMAGE_PATH = '/cs/labs/daphna/daphna/data/celeba/celeba64_2000'
 SAMPLE_PATH = '../'
 identity_celeb_a_csv = '/cs/labs/daphna/daphna/data/celeba/identity_CelebA.csv'
-identities = pd.read_csv(identity_celeb_a_csv , " " , header=None)
-identities.columns = ["fname" , "id"]
-identities.sort_values(by=["id"] , inplace=True)
-identities_train = identities.loc[identities['id'] <= 2400]
-identities_test = identities.loc[(identities['id'] > 2400) & (identities['id'] < 4401)]
-identities_test = identities_test.groupby('id').first()
 
 
 class FaceLandmarksDataset(Dataset):
