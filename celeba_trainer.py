@@ -15,7 +15,7 @@ max_epoch = 10000
 batch_size = 64
 image_size = 64
 log_step = 100
-IMAGE_PATH = '/cs/labs/daphna/daphna/data/celeba/celeba64_2000'
+IMAGE_PATH = '/cs/labs/daphna/daphna/data/celeba/celeba64_2000_combine'
 SAMPLE_PATH = '../'
 identity_celeb_a_csv = '/cs/labs/daphna/daphna/data/celeba/identity_CelebA.csv'
 
