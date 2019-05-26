@@ -32,13 +32,14 @@ class FaceLandmarksDataset(Dataset):
 				on a sample.
 		"""
 		self.root_dir=root_dir
-		identities = pd.read_csv(csv_file , " " , header=None,engine='python')
+		identities = pd.read_csv(csv_file , " " , header=None,engine='python',index_col=True)
 		identities.columns = ["fname" , "id"]
 		identities.sort_values(by=["id"] , inplace=True)
 		identities_train = identities.loc[identities['id'] <= 2400]
 		identities_test = identities.loc[(identities['id'] > 2400) & (identities['id'] < 4401)]
 		identities_test = identities_test.groupby('id').first()
-		self.identities = pd.concat([identities_train , identities_test])
+		self.identities = pd.concat([identities_train , identities_test],sort=False)
+		self.identities=self.identities.reset_index()
 		# self.identities = pd.read_csv(csv_file)
 		self.root_dir = root_dir
 		self.transform = transform
