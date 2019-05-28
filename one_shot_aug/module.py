@@ -57,7 +57,7 @@ class PretrainedClassifier(nn.Module):
 		elif arch.startswith('resne'):
 			# model = models.__dict__[arch](pretrained=Config.model.pretrained)
 			model = models.__dict__[arch](pretrained=False)
-			epoch, classifier = self.load_saved_model("train_mini_resnet50", self.model)
+			epoch, classifier = self.load_saved_model("train_mini_resnet50", model)
 			model = classifier
 			print(f"Model has been loaded epoch:{epoch}, path:{self.path_to_save}")
 			for param in model.parameters():
@@ -198,6 +198,7 @@ class PretrainedClassifier(nn.Module):
 	
 	def load_saved_model(self, path, model):
 		latest_path = find_latest(path + "/")
+		print(latest_path)
 		if latest_path is None:
 			print(latest_path)
 			return 0, model

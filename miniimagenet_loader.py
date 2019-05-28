@@ -54,6 +54,7 @@ def _read_classes(dir_path, transforms):
 	"""
 	Read the WNID directories in a directory.
 	"""
+	print(f"=>Number of test classes = {len([ f for f in os.listdir(dir_path) if f.startswith('n')])}")
 	return [ImageNetClass(os.path.join(dir_path, f), transforms) for f in os.listdir(dir_path) if f.startswith('n')]
 
 
