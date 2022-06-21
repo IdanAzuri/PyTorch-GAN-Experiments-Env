@@ -2,7 +2,7 @@ hb-config==0.5.1
 imageio==2.2.0
 matplotlib==2.2.2
 numexpr==2.6.5
-numpy==1.15.4
+numpy==1.22.0
 numpydoc==0.7.0
 Pillow==5.4.0
 scikit-image==0.14.0
